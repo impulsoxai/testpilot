@@ -1,257 +1,235 @@
-﻿# TestPilot 🚀
+# TestPilot
 
-**Universal QA skill for Claude Code**
-APIs · MCP Servers · AI Agents · Node.js · Python
+**Universal QA skill for Claude Code — APIs, MCP Servers, and AI agents**
 
-> Found and fixed critical production bugs in 2 projects
-> before a single user was affected.
+13 test phases | Auto-fix | Full reports | Zero config
 
 ---
 
-## What is TestPilot?
-
-TestPilot is a Claude Code skill that runs a complete QA
-suite on your project automatically — 13 test phases,
-auto-fix with your approval, and a full report in minutes.
-
-It works alongside Claude Code's built-in `/simplify` skill:
-- `/testpilot` — validates that your code **works correctly**
-- `/simplify` — validates that your code **is well written**
-
-**Run both. Ship with confidence.**
-
----
-
-## The recommended workflow
-
-```
-Build or modify your code
-        ↓
-    /testpilot          ← finds bugs, security issues, crashes
-        ↓
-  "Auto-fix? (s/n)"    ← approve fixes with one keystroke
-        ↓
-    /simplify           ← cleans dead code, redundancies
-        ↓
-    /testpilot          ← confirms everything still works
-        ↓
-  commit + deploy       ← suggested message included
-```
-
-No manual testing. No configuration. One command.
-
----
-
-## Install
+## Quick Start
 
 ```bash
-# Copy to your project
-cp -r testpilot your-project/.claude/skills/
+# 1. Copy to your project
+cp -r .claude/skills/testpilot your-project/.claude/skills/
 
-# Run
+# 2. Install Python dependency
+pip install httpx
+
+# 3. Run
 /testpilot
 ```
 
-That's it. TestPilot auto-detects your stack.
+Claude will scan your project, detect the stack, and run all 13 phases automatically.
 
----
-
-## 13 Test Phases
-
-| # | Phase | What it checks |
-|---|-------|----------------|
-| 1 | Environment | All env vars present, external APIs reachable |
-| 2 | Unit Tests | pytest / jest with coverage report |
-| 3 | Integration | Live endpoints — valid and invalid inputs |
-| 4 | Regression | Nothing that worked before is now broken |
-| 5 | Contract | API schema hasn't changed in breaking ways |
-| 6 | Idempotency | Same input always returns same output |
-| 7 | Cache | Cache hit/miss working correctly |
-| 8 | Rate Limiting | Limits enforced after threshold |
-| 9 | Encoding | UTF-8, accents, emojis, RTL text |
-| 10 | Security | 20+ malicious input patterns (SQLi, XSS, SSRF...) |
-| 11 | Performance | P50/P95/P99 under 10/50/100 concurrent requests |
-| 12 | Recovery | Server survives bad requests and keeps responding |
-| 13 | Code Quality | Dead code, missing docstrings, pattern consistency |
-
----
-
-## Auto-fix
-
-When TestPilot finds a problem, it asks before changing anything:
+## What you'll see
 
 ```
-⚠️  PHASE 12 — 1 issue found:
-Server crashes on malformed JSON
-Fix: add global Express error handler
-Auto-fix? (s/n)
+🔍 TestPilot v1.1.0 — Discovery
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Project: ImpulsoX-CRM
+Type: REST API
+Stack: Node.js
+Tests: 8 files found
+Production URL: https://crm.impulsoxai.com.br
+Starting QA suite...
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Phase 1  — Environment: 5/5 vars present
+✅ Phase 2  — Unit Tests: 212/212 passed (coverage: 82%)
+✅ Phase 3  — Integration: 14/14 passed
+✅ Phase 4  — Regression: No regressions
+✅ Phase 5  — Contract: 12/12 tools valid
+✅ Phase 6  — Idempotency: 8/8 deterministic
+⚠️  Phase 7  — Cache: 2/3 tools cached
+✅ Phase 8  — Rate Limiting: Enforced
+✅ Phase 9  — Encoding: 11/11 passed
+✅ Phase 10 — Security: 10/10 passed
+✅ Phase 11 — Performance: avg 45ms, p95 120ms
+✅ Phase 12 — Recovery: Server recovered
+✅ Phase 13 — Code Quality: No dead code
+
+╔═══════════════════════════════════════════════════╗
+║  OVERALL: ✅ READY TO DEPLOY                      ║
+║  Auto-fixed: 0 issues                             ║
+║  Manual action needed: 0 issues                   ║
+╚═══════════════════════════════════════════════════╝
+
+Suggested commit message:
+feat: updates to ImpulsoX-CRM
+TestPilot QA ✅
+Unit: pass | Integration: pass
+Security: clean | P95: 120ms
+13/13 phases passed
 ```
 
-Say **s** and TestPilot fixes, re-tests, and confirms.
-Say **n** and it documents what needs manual attention.
+## What it tests
 
----
+| Phase | Type | Description |
+|-------|------|-------------|
+| 1 | Environment | Env vars + external API availability |
+| 2 | Unit | pytest/jest with coverage |
+| 3 | Integration | Live API/MCP testing |
+| 4 | Regression | Nothing that worked before broke |
+| 5 | Contract | API schema hasn't changed |
+| 6 | Idempotency | Same input = same output |
+| 7 | Cache | Cache is working correctly |
+| 8 | Rate limiting | Limits are enforced |
+| 9 | Encoding | UTF-8, accents, emojis, RTL |
+| 10 | Security | 20+ malicious input patterns |
+| 11 | Performance | 10/50/100 concurrent requests |
+| 12 | Recovery | Server recovers after errors |
+| 13 | Code Quality | Dead code, docstrings, /simplify |
 
-## Real bugs found
+## Complete Invocation Example
 
-TestPilot found these critical bugs before production:
+When you type `/testpilot`, Claude will:
 
-| Project | Bug | Phase |
-|---------|-----|-------|
-| ImpulsoX CRM | Server crash on malformed JSON | Phase 12 |
-| ImpulsoX CRM | SQLite transactions without ROLLBACK | Phase 13 |
-| Brazil MCP Server | Missing docstrings on MCP tools | Phase 13 |
+**Step 1 — Discovery:** Scans your project for language, test framework, and production URL.
 
----
+**Step 2 — Run phases 1-13:** Each phase runs sequentially. If a phase finds problems, Claude asks permission before auto-correcting:
+
+```
+⚠️  FASE 10 — 1 vulnerabilidade(s) encontrada(s):
+
+1. /api/users: retorna 500 com SQL injection
+   Causa: Input não sanitizado
+   Correção: Adicionar validação com regex
+
+Vou alterar src/routes/users.py:
+
+linha 45: def get_user(id: str):
+linha 45: def get_user(id: str):
+              if not re.match(r'^[a-zA-Z0-9-]+$', id):
+                  return {"error": "ID inválido"}, 400
+
+Posso corrigir automaticamente? (s/n)
+```
+
+**Step 3 — Summary:** Shows all fixes applied and a final report saved to `tests/reports/`.
+
+## CLI Scripts
+
+Each script can run standalone:
+
+```bash
+# Security tests
+python .claude/skills/testpilot/scripts/security_test.py https://api.example.com
+python .claude/skills/testpilot/scripts/security_test.py https://api.example.com --json
+
+# Contract validation
+python .claude/skills/testpilot/scripts/contract_test.py https://api.example.com
+python .claude/skills/testpilot/scripts/contract_test.py https://api.example.com --compare previous.json
+
+# Load testing
+python .claude/skills/testpilot/scripts/load_test.py https://api.example.com
+python .claude/skills/testpilot/scripts/load_test.py https://api.example.com /api/users --json
+
+# Report generation
+python .claude/skills/testpilot/scripts/report_generator.py results.json
+python .claude/skills/testpilot/scripts/report_generator.py results.json --output report.md
+```
+
+All scripts support `--help` for usage info and `--json` for CI/CD integration.
+
+## Dependencies
+
+| Package | Required | Purpose |
+|---------|----------|---------|
+| httpx | Yes | HTTP requests for integration/security/performance tests |
+| Python 3.10+ | Yes | Script execution |
+
+All other imports use Python standard library.
 
 ## Works with
 
-| Stack | Supported |
-|-------|-----------|
-| Python + FastAPI | ✅ |
-| Python + FastMCP (MCP Server) | ✅ |
-| Node.js + Express | ✅ |
-| Any HTTP REST API | ✅ |
-| Any MCP Server | ✅ |
+- Python APIs (FastAPI, FastMCP, Flask)
+- Node.js APIs (Express, Fastify)
+- MCP Servers (any transport)
+- AI Agents (OpenClaw, LangChain)
 
----
+## Troubleshooting
+
+### `ModuleNotFoundError: No module named 'httpx'`
+Install the dependency: `pip install httpx`
+
+### `UnicodeEncodeError` on Windows
+Some scripts use Unicode characters (box-drawing, emojis). Run in a terminal that supports UTF-8:
+```bash
+# PowerShell
+$env:PYTHONIOENCODING = "utf-8"
+python .claude/skills/testpilot/scripts/security_test.py https://api.example.com
+```
+
+### Integration/Performance phases skipped
+These phases require a running server. If `PRODUCTION_URL` is not found in CLAUDE.md or .env.example, they are marked `⏭️ SKIPPED`. Add your URL to `.env.example`:
+```
+BASE_URL=https://your-api.com
+```
+
+### `Connection refused` during security tests
+The test server must be running locally. Start it before running `/testpilot`:
+```bash
+# Python
+uvicorn src.main:app --port 8000
+
+# Node.js
+npm run dev
+```
+
+### Auto-correction not working
+TestPilot only auto-corrects specific issues (see SKILL.md for the full list). Business logic errors, test failures caused by wrong behavior, and security tokens are never auto-corrected — they are flagged as `⚠️ Manual action needed`.
+
+### JSON output for CI/CD
+Use `--json` flag on any script to get machine-readable output:
+```bash
+python .claude/skills/testpilot/scripts/security_test.py https://api.example.com --json
+```
+
+## Project Structure
+
+```
+testpilot/
+├── SKILL.md                    # Claude instructions (939 lines)
+├── README.md                   # This file
+├── CHANGELOG.md                # Version history
+├── references/
+│   └── phases.md               # 13 phases documentation
+├── expected_outputs/
+│   └── report_example.md       # Example report output
+└── scripts/
+    ├── _shared.py              # Shared utilities (Severity, mcp_call, etc.)
+    ├── security_test.py        # 20+ attack vectors
+    ├── contract_test.py        # API schema validation
+    ├── load_test.py            # Concurrent performance tests
+    └── report_generator.py     # Formatted QA reports
+```
 
 ## Built by
 
-**[ImpulsoX AI](https://impulsoxai.com.br)**
-Brazilian AI agents company.
-Also check out our [Brazil MCP Server](https://github.com/impulsoxai/brazil-mcp-server) —
-the first MCP Server with native Brazilian APIs (CNPJ, CPF, CEP, PIX).
-
-MIT License · Made in Brazil 🇧🇷
+[ImpulsoX AI](https://impulsoxai.com.br) —
+Brazilian AI agents company
 
 ---
----
 
-# TestPilot 🚀
+# TestPilot
 
 **Skill universal de QA para Claude Code**
-APIs · MCP Servers · Agentes de IA · Node.js · Python
 
-> Encontrou e corrigiu bugs críticos em 2 projetos
-> antes de qualquer usuário ser afetado.
+13 fases de teste | Auto-correcao | Relatorios completos
 
----
-
-## O que é o TestPilot?
-
-TestPilot é uma skill do Claude Code que roda uma suite
-completa de QA no seu projeto automaticamente — 13 fases
-de teste, auto-correção com sua aprovação, e relatório
-completo em minutos.
-
-Funciona junto com a skill `/simplify` nativa do Claude Code:
-- `/testpilot` — valida que seu código **funciona corretamente**
-- `/simplify` — valida que seu código **está bem escrito**
-
-**Rode os dois. Faça deploy com confiança.**
-
----
-
-## O fluxo recomendado
-
-```
-Constrói ou modifica o código
-        ↓
-    /testpilot          ← encontra bugs, problemas de segurança, crashes
-        ↓
-  "Auto-corrigir? (s/n)" ← aprova correções com uma tecla
-        ↓
-    /simplify           ← limpa código morto e redundâncias
-        ↓
-    /testpilot          ← confirma que tudo ainda funciona
-        ↓
-  commit + deploy       ← mensagem de commit sugerida
-```
-
-Sem testes manuais. Sem configuração. Um comando.
-
----
-
-## Instalar
+## Como usar
 
 ```bash
-# Copia para o seu projeto
-cp -r testpilot seu-projeto/.claude/skills/
+# Copia para seu projeto
+cp -r .claude/skills/testpilot seu-projeto/.claude/skills/
+
+# Instala dependencia
+pip install httpx
 
 # Roda
 /testpilot
 ```
 
-Pronto. O TestPilot detecta automaticamente o seu stack.
+## Construido por
 
----
-
-## 13 Fases de Teste
-
-| # | Fase | O que verifica |
-|---|------|----------------|
-| 1 | Ambiente | Variáveis de ambiente, APIs externas acessíveis |
-| 2 | Unitários | pytest / jest com relatório de cobertura |
-| 3 | Integração | Endpoints reais — inputs válidos e inválidos |
-| 4 | Regressão | Nada que funcionava antes está quebrado |
-| 5 | Contrato | Schema da API não mudou de forma incompatível |
-| 6 | Idempotência | Mesmo input sempre retorna mesmo output |
-| 7 | Cache | Cache hit/miss funcionando corretamente |
-| 8 | Rate Limiting | Limites respeitados após threshold |
-| 9 | Encoding | UTF-8, acentos, emojis, texto RTL |
-| 10 | Segurança | 20+ padrões maliciosos (SQLi, XSS, SSRF...) |
-| 11 | Performance | P50/P95/P99 com 10/50/100 requests simultâneos |
-| 12 | Recovery | Servidor sobrevive a requisições ruins |
-| 13 | Qualidade | Código morto, docstrings, consistência de padrões |
-
----
-
-## Auto-correção
-
-Quando o TestPilot encontra um problema, pergunta antes de mudar:
-
-```
-⚠️  FASE 12 — 1 problema encontrado:
-Servidor crasha com JSON malformado
-Correção: adicionar error handler global no Express
-Auto-corrigir? (s/n)
-```
-
-Diga **s** e o TestPilot corrige, testa de novo e confirma.
-Diga **n** e ele documenta o que precisa de atenção manual.
-
----
-
-## Bugs reais encontrados
-
-O TestPilot encontrou estes bugs críticos antes da produção:
-
-| Projeto | Bug | Fase |
-|---------|-----|------|
-| ImpulsoX CRM | Servidor crashava com JSON malformado | Fase 12 |
-| ImpulsoX CRM | Transações SQLite sem ROLLBACK | Fase 13 |
-| Brazil MCP Server | Docstrings faltando nas tools MCP | Fase 13 |
-
----
-
-## Compatível com
-
-| Stack | Suporte |
-|-------|---------|
-| Python + FastAPI | ✅ |
-| Python + FastMCP (MCP Server) | ✅ |
-| Node.js + Express | ✅ |
-| Qualquer API HTTP REST | ✅ |
-| Qualquer MCP Server | ✅ |
-
----
-
-## Construído por
-
-**[ImpulsoX AI](https://impulsoxai.com.br)**
-Agência brasileira de agentes de IA.
-Confira também nosso [Brazil MCP Server](https://github.com/impulsoxai/brazil-mcp-server) —
-o primeiro MCP Server com APIs brasileiras nativas (CNPJ, CPF, CEP, PIX).
-
-Licença MIT · Feito no Brasil 🇧🇷
+[ImpulsoX AI](https://impulsoxai.com.br)
