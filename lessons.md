@@ -91,3 +91,24 @@ confirma: `contract_test.py:78:16: undefined name 'mcp_call_tool'`.
 **Testes adicionados:** `scripts/tests/test_contract_response_format.py` — 8 casos:
 verificação do símbolo no namespace do módulo + respostas MCP válidas/inválidas
 (content ausente, content não-lista, type/text ausentes, error com/sem code).
+
+---
+
+## L-005 — _shared.py: dict chamado como função em format_severity
+
+**Symptom:** `format_severity("critical")` lançava `TypeError: 'dict' object is
+not callable`. Função inútil para todas as entradas válidas.
+
+**Root cause:** `SEVERITY_ICONS(Severity(severity))` — parênteses em cima de um
+dict (não colchetes). O `except (ValueError, KeyError)` não pega `TypeError`, então
+a exceção escapava para o chamador.
+
+**Fix:** Trocar `SEVERITY_ICONS(key)` por `SEVERITY_ICONS.get(key, "⚪")`. Dict
+`.get()` lida com chaves ausentes nativamente; `except` reduzido para só `ValueError`
+(levantado por `Severity(invalid_string)`).
+
+**Commit:** `9091e0a` — `fix(_shared): format_severity uses .get() instead of calling dict as function`
+
+**Testes adicionados:** `scripts/tests/test_format_severity.py` — 7 casos:
+ícone correto por severidade, default para string inválida/vazia/uppercase,
+guard `test_never_raises` verifica que nenhuma entrada propaga exceção.
