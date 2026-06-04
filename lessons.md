@@ -49,3 +49,26 @@ Phase 1 inline code atualizado com mesma lógica.
 **Testes adicionados:** `scripts/tests/test_env_check.py` — 10 casos cobrindo
 all-present, missing, os.environ override, no .env.example, empty value,
 value-with-equals, comments, no .env file + var in environ.
+
+---
+
+## L-003 — RESUMO: git push automático contradiz as próprias RULES
+
+**Symptom:** Após aprovar correções, SKILL.md executava `git add .`,
+`git commit` e `git push` automaticamente, terminando com
+"✅ Deploy pronto! Aguardando Railway...".
+
+**Root cause:** Contradição interna: as próprias RULES #2 e #3 do SKILL.md
+dizem "NEVER commit automatically" e "NEVER deploy", mas a seção RESUMO
+as violava. `git add .` ainda arriscava incluir segredos e arquivos não
+relacionados.
+
+**Fix:** Substituir o bloco de execução automática por um bloco de
+"comandos para rodar manualmente" — o usuário vê os comandos exatos,
+revisa o diff, e decide quando e o que commitar/pushar.
+
+**Commit:** `2f42573` — `fix(resumo): remove automatic git push, add ., and deploy claims`
+
+**Testes adicionados:** `scripts/tests/test_skill_compliance.py` — 7 casos
+de compliance: ausência de "Deploy pronto", "Aguardando Railway", "- git push",
+"- git add .", "Fazer commit e push"; presença de linguagem de "rode manualmente".
