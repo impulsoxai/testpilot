@@ -524,25 +524,47 @@ Posso corrigir automaticamente? (s/n)
 
 ## PHASE 8 — RATE LIMITING TESTS
 
-Verify rate limiting is enforced.
+Verify rate limiting is enforced on the correct endpoint.
+
+```bash
+# Run via standalone script — reads RATE_LIMIT_ENDPOINT from environment.
+# If the var is not set, falls back to /health and prints AVISO.
+python scripts/rate_limit_check.py {PRODUCTION_URL}
+```
+
+Or inline:
 
 ```python
-import httpx
+import httpx, os
 
-def test_rate_limiting(url, limit=100):
-    responses = []
-    for i in range(limit + 10):
-        r = httpx.get(f"{url}/health", timeout=5)
+RATE_LIMIT_ENDPOINT = os.environ.get("RATE_LIMIT_ENDPOINT", "").strip() or "/health"
+_used_fallback = not os.environ.get("RATE_LIMIT_ENDPOINT", "").strip()
+
+if _used_fallback:
+    print(
+        "AVISO: usando endpoint padrão '/health' — "
+        "defina RATE_LIMIT_ENDPOINT para o endpoint real do seu projeto."
+    )
+
+url = f"{BASE_URL}{RATE_LIMIT_ENDPOINT}"
+responses = []
+for i in range(110):
+    try:
+        r = httpx.get(url, timeout=5)
         responses.append(r.status_code)
+    except httpx.ConnectError:
+        break
 
-    # After limit, should get 429
-    last_10 = responses[-10:]
-    has_429 = 429 in last_10
+last_10 = responses[-10:] if len(responses) >= 10 else responses
+has_429 = 429 in last_10
 
-    if has_429:
-        print(f"✅ Rate limiting working (got 429 after {limit} requests)")
-    else:
-        print(f"⚠️  Rate limiting not enforced (no 429 after {limit+10} requests)")
+if has_429:
+    print(f"✅ Rate limiting aplicado em {RATE_LIMIT_ENDPOINT} (429 detectado)")
+else:
+    print(
+        f"⚠️  Rate limiting NÃO detectado em {RATE_LIMIT_ENDPOINT} "
+        f"(sem 429 após {len(responses)} requests)"
+    )
 ```
 
 ### AUTO-CORRECAO — Phase 8
