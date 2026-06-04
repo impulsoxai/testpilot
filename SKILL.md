@@ -858,23 +858,19 @@ Unit tests: X/X ✅
 Security: X/X ✅
 [demais fases]
 
-Sugestão de commit:
-fix: [lista do que foi corrigido]
+📋 Para commitar, rode manualmente:
+
+git add [arquivos alterados listados acima]
+git commit -m "fix: [lista do que foi corrigido]
 
 TestPilot auto-fix:
 [correção 1]
 [correção 2]
-[correção 3]
+[correção 3]"
 
-→ Fazer commit e push? (s/n)
+# Revise o diff e faça push quando estiver pronto.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
-
-Se aprovado (s):
-- git add .
-- git commit com a mensagem sugerida
-- git push
-- Mostra: "✅ Deploy pronto! Aguardando Railway..."
 
 ---
 
