@@ -828,7 +828,7 @@ Ao final de todas as fases, ANTES do relatorio final:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📋 RESUMO DE CORREÇÕES DISPONÍVEIS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Automáticas (posso aplicar agora):
+Automáticas (uma de cada vez, com confirmação):
 ✅ [Phase 1] Adicionar 3 env vars faltando
 ✅ [Phase 13] Adicionar docstring em função X
 ✅ [Phase 10] Sanitizar input em ferramenta Y
@@ -836,40 +836,32 @@ Automáticas (posso aplicar agora):
 Manuais (requerem sua decisão):
 ⚠️  [Phase 2] Lógica incorreta em test_X
 ⚠️  [Phase 1] JWT_SECRET precisa de valor real
-
-→ Aplicar todas as correções automáticas? (s/n)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-Se aprovado (s):
-1. Aplica todas as correcoes automaticas em sequencia
-2. Roda pytest completo para confirmar
-3. Roda as fases afetadas novamente
-4. Mostra relatorio final limpo
-5. Pergunta:
+Para cada correção automática, individualmente e em ordem:
 
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ Todas as correções aplicadas!
+1. Mostra o diff da correção
+2. Pergunta: `Posso aplicar esta correção? (s/n)`
+3. Se aprovado (s):
+   - Aplica a correção
+   - Roda novamente só a fase afetada para confirmar
+   - Mostra resultado (`✅ Corrigido` ou `⚠️ Falhou — movendo para manual`)
+   - Sugere commit para ESTA correção:
+     ```
+     📋 Para commitar esta correção, rode manualmente:
 
-Resultado final:
-Unit tests: X/X ✅
-Security: X/X ✅
-[demais fases]
+     git add [arquivo alterado]
+     git commit -m "fix: [descrição desta correção]
 
-📋 Para commitar, rode manualmente:
+     TestPilot auto-fix — Phase N"
 
-git add [arquivos alterados listados acima]
-git commit -m "fix: [lista do que foi corrigido]
+     # Revise o diff antes de commitar.
+     ```
+4. Se negado (n): documenta como `⚠️ Manual action needed` e passa para próxima
+5. Avança para a próxima correção — nunca em lote
 
-TestPilot auto-fix:
-[correção 1]
-[correção 2]
-[correção 3]"
-
-# Revise o diff e faça push quando estiver pronto.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
+Após processar todas individualmente, mostra o relatório final.
 
 ---
 
