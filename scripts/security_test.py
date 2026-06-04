@@ -7,6 +7,7 @@ Built by ImpulsoX AI — github.com/impulsoxai/testpilot
 import argparse
 import httpx
 import json
+import time
 
 from _shared import (
     Severity,
@@ -18,6 +19,51 @@ STACK_TRACE_MARKERS = [
     "traceback", "stack trace", "exception",
     "at line", "file \"", "syntaxerror",
 ]
+
+DB_ERROR_MARKERS = [
+    "sql syntax", "syntax error near", "you have an error in your sql",
+    "warning: mysql", "pg::syntaxerror", "postgresql error",
+    "sqlite3.operationalerror", "sqlite_error",
+    "odbc sql", "sqlstate", "ora-",
+    "unclosed quotation mark", "jdbc exception",
+    "sql server", "database error",
+]
+
+SLOW_REQUEST_THRESHOLD_S = 3.0
+
+
+def _check_sql_injection_signals(
+    response_text: str,
+    elapsed_s: float,
+    payload_repr: str,
+) -> list[dict]:
+    """
+    Return real SQL injection signals from a probe response.
+
+    Checks: DB error strings in body, response time > threshold.
+    Status 200 alone is NOT a signal — it's correct sanitized behavior.
+    """
+    issues = []
+    body_lower = response_text.lower()
+
+    if any(marker in body_lower for marker in DB_ERROR_MARKERS):
+        issues.append({
+            "payload": payload_repr,
+            "issue": "Database error in response (possible error-based SQL injection)",
+            "severity": Severity.WARNING,
+        })
+
+    if elapsed_s > SLOW_REQUEST_THRESHOLD_S:
+        issues.append({
+            "payload": payload_repr,
+            "issue": (
+                f"Slow response ({elapsed_s:.1f}s) to SQL payload — "
+                "possible time-based injection"
+            ),
+            "severity": Severity.WARNING,
+        })
+
+    return issues
 
 
 MALICIOUS_INPUTS = {
@@ -139,7 +185,9 @@ def test_security(
                 payload_repr = str(payload)[:100]
 
                 try:
+                    t0 = time.time()
                     r = _send_payload(client, base_url, payload, test_mcp, tool_name, i)
+                    elapsed = time.time() - t0
                     response_lower = r.text.lower()
 
                     if r.status_code == 500:
@@ -156,12 +204,10 @@ def test_security(
                             "severity": Severity.CRITICAL,
                         })
 
-                    if category == "sql_injection" and r.status_code == 200:
-                        category_issues.append({
-                            "payload": payload_repr,
-                            "issue": "Possible SQL injection (200 response)",
-                            "severity": Severity.WARNING,
-                        })
+                    if category == "sql_injection":
+                        category_issues.extend(
+                            _check_sql_injection_signals(r.text, elapsed, payload_repr)
+                        )
 
                 except httpx.ConnectError:
                     category_issues.append({
