@@ -22,3 +22,30 @@ report inútil em ambos os sentidos.
 **Testes adicionados:** `scripts/tests/test_parse_output.py` — 12 casos cobrindo
 pytest all-pass/all-fail/mixed/errors, jest all-pass/all-fail/mixed,
 cobertura, FAILED lines, output vazio.
+
+---
+
+## L-002 — Phase 1: os.getenv não lê .env não-exportado
+
+**Symptom:** Fase 1 reportava "❌ Missing env vars" mesmo com `.env` completo.
+Auto-correção escrevia placeholder, re-checava via `os.getenv` (ainda vazio),
+falhava de novo → loop até "manual action needed".
+
+**Root cause:** `os.getenv(k)` lê `os.environ` (variáveis exportadas no processo).
+Arquivo `.env` nunca é sourced automaticamente — Claude Code não exporta `.env`
+pro ambiente antes de rodar o python -c. Resultado: toda variável definida só
+no arquivo `.env` era invisível.
+
+**Fix:** Parsear `.env` como arquivo diretamente (igual ao `.env.example`),
+mesclar com `os.environ` (`{**parse_env_file('.env'), **os.environ}`). Usar
+`str.partition('=')` em vez de `split('=')[0]` para lidar com valores que
+contêm `=` (connection strings, URLs com parâmetros).
+
+**Artefatos:** `scripts/env_check.py` (módulo standalone + testável); SKILL.md
+Phase 1 inline code atualizado com mesma lógica.
+
+**Commit:** `8e4d401` — `fix(phase-1): parse .env file directly instead of os.getenv`
+
+**Testes adicionados:** `scripts/tests/test_env_check.py` — 10 casos cobrindo
+all-present, missing, os.environ override, no .env.example, empty value,
+value-with-equals, comments, no .env file + var in environ.
