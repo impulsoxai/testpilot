@@ -112,3 +112,47 @@ a exceção escapava para o chamador.
 **Testes adicionados:** `scripts/tests/test_format_severity.py` — 7 casos:
 ícone correto por severidade, default para string inválida/vazia/uppercase,
 guard `test_never_raises` verifica que nenhuma entrada propaga exceção.
+
+---
+
+## L-006 — Limpeza: imports mortos causam ruído e risco de NameError
+
+**Symptom:** pyflakes reportava 10 warnings de imports não usados em 4 scripts.
+`require_args` importado em 3 scripts sem nenhum uso após migração para argparse.
+`sys` importado mas nunca chamado em 4 scripts.
+
+**Root cause:** Migração de `sys.argv` manual para `argparse` (v1.0.0) não removeu
+os imports antigos. `require_args` ficou como dead code em `_shared.py` com
+referência a `sys` que foi removido — criaria `NameError` em runtime se chamada.
+
+**Fix:** Remover todos imports mortos; apagar `require_args` de `_shared.py`;
+centralizar versão com `VERSION = "1.1.0"` em `_shared.py`; `report_generator.py`
+importa e usa em vez de literal hardcoded. SKILL.md description removeu "after any
+code change" + `disable-model-invocation: true`.
+
+**Commit:** `06329b3` — `chore(cleanup): dead imports, VERSION constant, skill description`
+
+**Testes adicionados:** `scripts/tests/test_cleanup.py` — 5 casos de compliance:
+pyflakes limpo, VERSION presente e usado no banner, description e
+disable-model-invocation corretos.
+
+---
+
+## L-005 — _shared.py: dict chamado como função em format_severity
+
+**Symptom:** `format_severity("critical")` lançava `TypeError: 'dict' object is
+not callable`. Função inútil para todas as entradas válidas.
+
+**Root cause:** `SEVERITY_ICONS(Severity(severity))` — parênteses em cima de um
+dict (não colchetes). O `except (ValueError, KeyError)` não pega `TypeError`, então
+a exceção escapava para o chamador.
+
+**Fix:** Trocar `SEVERITY_ICONS(key)` por `SEVERITY_ICONS.get(key, "⚪")`. Dict
+`.get()` lida com chaves ausentes nativamente; `except` reduzido para só `ValueError`
+(levantado por `Severity(invalid_string)`).
+
+**Commit:** `9091e0a` — `fix(_shared): format_severity uses .get() instead of calling dict as function`
+
+**Testes adicionados:** `scripts/tests/test_format_severity.py` — 7 casos:
+ícone correto por severidade, default para string inválida/vazia/uppercase,
+guard `test_never_raises` verifica que nenhuma entrada propaga exceção.
