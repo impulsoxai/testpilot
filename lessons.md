@@ -158,6 +158,28 @@ re-verificação por fase, commit-por-fix.
 
 ---
 
+## L-008 — Phase 8: endpoint /health hardcoded → falso NEGATIVO silencioso
+
+**Symptom:** Phase 8 disparava 110 requests em `/health`. Projetos com rate-limit
+em `/token`, `/api` ou `/login` recebiam "⚠️ Rate limiting not enforced" mesmo
+com rate-limit corretamente configurado.
+
+**Root cause:** `f"{url}/health"` hardcoded no pseudocódigo da fase. Nenhum
+mecanismo para o operador indicar o endpoint real. Falso NEGATIVO silencioso —
+não havia nenhum aviso de que o endpoint testado pode não ser o correto.
+
+**Fix:** Ler `RATE_LIMIT_ENDPOINT` de `os.environ`; fallback para `/health` só
+quando ausente/vazio; imprimir `AVISO` explícito no fallback com nome da var
+e instrução de como configurar.
+
+**Commit:** `5aa6413` — `fix(phase-8): rate-limit endpoint configurable via RATE_LIMIT_ENDPOINT`
+
+**Testes adicionados:** `scripts/tests/test_rate_limit_check.py` — 9 casos:
+env var usada quando presente, fallback quando ausente/vazio, strip de whitespace,
+AVISO com nome da var, sem warning quando explicitamente configurado.
+
+---
+
 ## L-005 — _shared.py: dict chamado como função em format_severity
 
 **Symptom:** `format_severity("critical")` lançava `TypeError: 'dict' object is
