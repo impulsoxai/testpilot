@@ -166,25 +166,40 @@ def parse_test_output(output: str) -> dict[str, Any]:
         "failures": [],
     }
 
-    for line in output.splitlines():
-        if "passed" in line and "failed" in line:
-            passed = re.search(r"(\d+) passed", line)
-            failed = re.search(r"(\d+) failed", line)
-            if passed:
-                result["passed"] = int(passed.group(1))
-            if failed:
-                result["failed"] = int(failed.group(1))
-            result["total"] = result["passed"] + result["failed"]
+    # Search each metric independently — no AND condition.
+    # pytest errors (collection failures) count toward failed.
+    m_passed = re.search(r"(\d+) passed", output)
+    m_failed = re.search(r"(\d+) failed", output)
+    m_error  = re.search(r"(\d+) error", output)
 
-        if "TOTAL" in line and "%" in line:
-            coverage = re.search(r"(\d+)%", line)
-            if coverage:
-                result["coverage"] = int(coverage.group(1))
+    if m_passed:
+        result["passed"] = int(m_passed.group(1))
+    if m_failed:
+        result["failed"] += int(m_failed.group(1))
+    if m_error:
+        result["failed"] += int(m_error.group(1))
 
-        if line.startswith("FAILED "):
-            result["failures"].append(line.replace("FAILED ", "").strip())
+    # jest "Tests:" line is authoritative when present — overrides above.
+    jest_match = re.search(r"Tests:\s+(.+)", output)
+    if jest_match:
+        jest_line = jest_match.group(1)
+        jm_passed = re.search(r"(\d+) passed", jest_line)
+        jm_failed = re.search(r"(\d+) failed", jest_line)
+        result["passed"] = int(jm_passed.group(1)) if jm_passed else 0
+        result["failed"] = int(jm_failed.group(1)) if jm_failed else 0
 
     result["total"] = result["passed"] + result["failed"]
+
+    for line in output.splitlines():
+        if "TOTAL" in line and "%" in line:
+            m = re.search(r"(\d+)%", line)
+            if m:
+                result["coverage"] = int(m.group(1))
+        if line.startswith("FAILED "):
+            # keep only the test node ID; strip " - Reason" suffix
+            test_id = line.removeprefix("FAILED ").split(" - ")[0].strip()
+            result["failures"].append(test_id)
+
     return result
 
 
