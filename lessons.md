@@ -72,3 +72,22 @@ revisa o diff, e decide quando e o que commitar/pushar.
 **Testes adicionados:** `scripts/tests/test_skill_compliance.py` — 7 casos
 de compliance: ausência de "Deploy pronto", "Aguardando Railway", "- git push",
 "- git add .", "Fazer commit e push"; presença de linguagem de "rode manualmente".
+
+---
+
+## L-004 — contract_test.py: mcp_call_tool chamado sem estar importado
+
+**Symptom:** `check_mcp_response_format` lançava `NameError: name 'mcp_call_tool'
+is not defined` toda vez que era chamada — Phase 5 (Contract Tests) quebrava silenciosamente.
+
+**Root cause:** Função na linha 78 chama `mcp_call_tool(...)` mas o bloco de import
+só trazia `mcp_call`. Symbol nunca importado → NameError em runtime. pyflakes
+confirma: `contract_test.py:78:16: undefined name 'mcp_call_tool'`.
+
+**Fix:** Adicionar `mcp_call_tool` ao import de `_shared` em `contract_test.py` — uma linha.
+
+**Commit:** `f9c1400` — `fix(contract_test): import mcp_call_tool to fix NameError at runtime`
+
+**Testes adicionados:** `scripts/tests/test_contract_response_format.py` — 8 casos:
+verificação do símbolo no namespace do módulo + respostas MCP válidas/inválidas
+(content ausente, content não-lista, type/text ausentes, error com/sem code).
