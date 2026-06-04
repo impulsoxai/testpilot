@@ -66,8 +66,8 @@ def mcp_call_tool(
 def format_severity(severity: str) -> str:
     """Return the icon for a severity level."""
     try:
-        return SEVERITY_ICONS(Severity(severity))
-    except (ValueError, KeyError):
+        return SEVERITY_ICONS.get(Severity(severity), "⚪")
+    except ValueError:
         return "⚪"
 
 
