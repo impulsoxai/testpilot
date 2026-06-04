@@ -138,6 +138,26 @@ disable-model-invocation corretos.
 
 ---
 
+## L-007 — RESUMO: lote de correções contradiz "uma correção por vez"
+
+**Symptom:** "Aplicar todas as correções automáticas? (s/n)" aplicava tudo em
+sequência com um único commit sugerido — violava Golden Rule #4 e CLAUDE.md.
+
+**Root cause:** Design original priorizava conveniência (uma aprovação para tudo)
+em vez de segurança/rastreabilidade. Cada fix em lote não tem fase de re-verificação
+própria nem commit atômico. Bug + acoplamento invisível.
+
+**Fix:** Loop individual por correção: diff → permissão → aplica → re-verifica fase
+afetada → sugere commit específico → próxima. Nunca em lote.
+
+**Commit:** `b89da64` — `fix(resumo): one-fix-at-a-time loop replaces batch apply`
+
+**Testes adicionados:** `scripts/tests/test_one_fix_at_a_time.py` — 5 casos:
+ausência de linguagem de lote, presença de "uma de cada vez",
+re-verificação por fase, commit-por-fix.
+
+---
+
 ## L-005 — _shared.py: dict chamado como função em format_severity
 
 **Symptom:** `format_severity("critical")` lançava `TypeError: 'dict' object is
