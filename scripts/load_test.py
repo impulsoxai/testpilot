@@ -10,14 +10,11 @@ import httpx
 import json
 import time
 import statistics
-import sys
 
 from _shared import (
     Severity,
     SEVERITY_ICONS,
     print_banner,
-    require_args,
-    format_performance_summary,
 )
 
 

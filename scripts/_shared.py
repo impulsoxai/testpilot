@@ -3,10 +3,11 @@ TestPilot — Shared utilities across all test scripts.
 Built by ImpulsoX AI — github.com/impulsoxai/testpilot
 """
 
-import sys
 from enum import Enum
 
 import httpx
+
+VERSION = "1.1.0"
 
 
 class Severity(str, Enum):
@@ -84,13 +85,6 @@ def print_banner(test_type: str, target: str) -> None:
     print(f"   Target: {target}")
     print()
 
-
-def require_args(n: int, usage: str) -> list[str]:
-    """Require at least n CLI arguments or exit with usage message."""
-    if len(sys.argv) < n + 1:
-        print(f"Usage: {usage}")
-        sys.exit(1)
-    return sys.argv[1:]
 
 
 def format_performance_line(n: int, data: dict) -> str:

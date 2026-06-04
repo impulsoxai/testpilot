@@ -7,14 +7,11 @@ Built by ImpulsoX AI — github.com/impulsoxai/testpilot
 import argparse
 import httpx
 import json
-import sys
 
 from _shared import (
     Severity,
     SEVERITY_ICONS,
-    mcp_call_tool,
     print_banner,
-    require_args,
 )
 
 STACK_TRACE_MARKERS = [

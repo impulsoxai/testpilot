@@ -6,14 +6,12 @@ Built by ImpulsoX AI — github.com/impulsoxai/testpilot
 
 import argparse
 import json
-import os
 import re
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from _shared import format_performance_line
+from _shared import format_performance_line, VERSION
 
 
 def generate_report(
@@ -42,7 +40,7 @@ def generate_report(
 
     lines = []
     lines.append("╔═══════════════════════════════════════════════════╗")
-    lines.append("║  🚀 TESTPILOT v1.1.0 — COMPLETE QA REPORT        ║")
+    lines.append(f"║  🚀 TESTPILOT v{VERSION} — COMPLETE QA REPORT        ║")
     lines.append(f"║  {project_name} — {timestamp:<30} ║")
     lines.append("╠═══════════════════════════════════════════════════╣")
 

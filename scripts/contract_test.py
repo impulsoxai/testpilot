@@ -6,7 +6,6 @@ Built by ImpulsoX AI — github.com/impulsoxai/testpilot
 
 import argparse
 import json
-import sys
 from typing import Any
 
 import httpx
@@ -17,7 +16,6 @@ from _shared import (
     mcp_call,
     mcp_call_tool,
     print_banner,
-    require_args,
 )
 
 

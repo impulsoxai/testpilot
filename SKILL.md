@@ -1,17 +1,16 @@
 ---
 name: testpilot
 description: >
-  Universal QA skill for APIs, MCP Servers, and AI agents.
-  Runs ALL types of tests automatically: unit, integration,
-  security, performance, contract, regression, idempotency,
-  cache, rate limiting, encoding, concurrency, recovery,
-  schema validation, environment check, and code quality.
-  Use /testpilot after any code change or before every deploy.
-  Works with Python (pytest), Node.js (jest/vitest), REST APIs,
-  and MCP Servers. Auto-fixes issues found and generates a
-  full report. Built by ImpulsoX AI.
+  Universal QA gate for APIs, MCP Servers, and AI agents.
+  Runs 13 test phases: unit, integration, security, performance,
+  contract, regression, idempotency, cache, rate limiting,
+  encoding, recovery, and code quality. Use explicitly with
+  /testpilot before deploy or merge, or when a QA gate is
+  requested. Works with Python (pytest), Node.js (jest/vitest),
+  REST APIs, and MCP Servers. Auto-fixes issues with permission
+  and generates a full report. Built by ImpulsoX AI.
 version: "1.1.0"
-disable-model-invocation: false
+disable-model-invocation: true
 allowed-tools:
   - Bash
   - Read
