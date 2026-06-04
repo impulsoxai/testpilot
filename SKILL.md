@@ -200,26 +200,32 @@ Starting QA suite...
 Before any tests, verify the environment is correct.
 
 ```bash
-# Check all required env vars from .env.example exist in .env
+# Check all required env vars from .env.example exist in .env file OR os.environ
 python -c "
 import os
 from pathlib import Path
 
-example = Path('.env.example')
-env = Path('.env')
+def parse_env_file(path):
+    result = {}
+    p = Path(path)
+    if not p.exists():
+        return result
+    for line in p.read_text(encoding='utf-8').splitlines():
+        line = line.strip()
+        if line and not line.startswith('#') and '=' in line:
+            key, _, value = line.partition('=')
+            result[key.strip()] = value.strip()
+    return result
 
+example = Path('.env.example')
 if not example.exists():
     print('⚠️  No .env.example found — skipping env check')
     exit(0)
 
-required = []
-for line in example.read_text().splitlines():
-    line = line.strip()
-    if line and not line.startswith('#') and '=' in line:
-        key = line.split('=')[0].strip()
-        required.append(key)
+required = list(parse_env_file(example).keys())
+configured = {**parse_env_file('.env'), **os.environ}
+missing = [k for k in required if not configured.get(k)]
 
-missing = [k for k in required if not os.getenv(k)]
 if missing:
     print(f'❌ Missing env vars: {missing}')
 else:
