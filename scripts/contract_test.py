@@ -15,6 +15,7 @@ from _shared import (
     Severity,
     SEVERITY_ICONS,
     mcp_call,
+    mcp_call_tool,
     print_banner,
     require_args,
 )
