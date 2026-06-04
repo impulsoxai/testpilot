@@ -180,6 +180,31 @@ AVISO com nome da var, sem warning quando explicitamente configurado.
 
 ---
 
+## L-009 — security_test.py: status 200 = falso positivo em massa
+
+**Symptom:** Todo input SQL que retornava 200 era flagado como "Possible SQL
+injection". Servidor que sanitizou corretamente o input → 200 → acusado.
+
+**Root cause:** `if category == "sql_injection" and r.status_code == 200:` —
+heurística incorreta. Status 200 é o comportamento CORRETO quando o input é
+sanitizado; não é sinal de injeção.
+
+**Fix:** Remover verificação de status 200. Substituir por sinais reais:
+- Erros de banco no body (MySQL, PG, SQLite, Oracle, MSSQL) → WARNING
+- Tempo de resposta > 3.0s (injeção baseada em tempo) → WARNING
+
+Extraído em `_check_sql_injection_signals(response_text, elapsed_s, payload_repr)`
+— função pura, sem necessidade de mock HTTP nos testes.
+
+**Commit:** `5b08aa6` — `fix(security): replace status-200 SQL heuristic with real injection signals`
+
+**Testes adicionados:** `scripts/tests/test_sql_injection_signals.py` — 13 casos:
+200 limpo (sem issue), 200 com erro de banco (issue), resposta lenta (issue),
+exatamente no limiar (sem issue), ambos sinais (2 issues), case-insensitive,
+marcadores MySQL/PG/SQLite/Oracle/MSSQL, constante SLOW_REQUEST_THRESHOLD_S.
+
+---
+
 ## L-005 — _shared.py: dict chamado como função em format_severity
 
 **Symptom:** `format_severity("critical")` lançava `TypeError: 'dict' object is
