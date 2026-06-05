@@ -471,7 +471,7 @@ scripts; markdown orquestra e julga.
 **Decisão (confirmada):** escopo desta sessão = #13a (dedup) + #13b (regression).
 Probes HTTP 6/7/9/12 adiados, serão script-com-config (reusam padrão targets).
 
-**Commit:** `<pending>` — `refactor(skill): replace inline duplicates with script calls in phases 5/8/11 (#13a)`
+**Commit:** `8f65384` — `refactor(skill): replace inline duplicates with script calls in phases 5/8/11 (#13a)`
 
 **Testes adicionados:** `scripts/tests/test_phase_scripts.py` — 7 casos de
 compliance: Phase 5/8/11 referenciam o script; ausência de `def check_contracts`,
