@@ -445,3 +445,34 @@ agora travam o gate de verdade.
 load package.json (valid/missing/inválido), `_has_build_script` (true/sem-build/
 sem-scripts/None), `_detect_build_command` (npm/tsc/prioridade/None×2), veredito
 skip/pass/fail + guard fail em qualquer exit não-zero.
+
+---
+
+## L-016 — SKILL.md: inline duplicado de scripts existentes → drift (#13a)
+
+**Symptom:** Phases 5 (Contract), 8 (Rate Limiting) e 11 (Performance) já tinham
+scripts standalone (`contract_test.py`, `rate_limit_check.py`, `load_test.py`),
+mas o SKILL.md ainda carregava o código inline antigo duplicado. Phase 8 tinha
+literalmente "Or inline:" com a versão velha ao lado da chamada do script.
+
+**Root cause:** Quando os scripts foram criados, o pseudocódigo inline não foi
+removido do markdown. Duas fontes da mesma lógica → drift garantido (o modelo
+podia rodar a versão inline desatualizada em vez do script testado).
+
+**Fix (#13a — fatia 1 de 2 do #13):** Remover os 3 inlines duplicados; cada fase
+no SKILL.md vira prosa curta + chamada `python scripts/X.py`. Phase 5 ganhou
+exemplo de `--compare` (breaking changes); Phase 11 manteve os thresholds como
+referência textual.
+
+**Padrão alvo (SKILL.md = orquestrador, não monolito):** prosa (o quê/porquê) +
+1 chamada de script + bloco AUTO-CORRECAO (julgamento do modelo). Lógica nos
+scripts; markdown orquestra e julga.
+
+**Decisão (confirmada):** escopo desta sessão = #13a (dedup) + #13b (regression).
+Probes HTTP 6/7/9/12 adiados, serão script-com-config (reusam padrão targets).
+
+**Commit:** `<pending>` — `refactor(skill): replace inline duplicates with script calls in phases 5/8/11 (#13a)`
+
+**Testes adicionados:** `scripts/tests/test_phase_scripts.py` — 7 casos de
+compliance: Phase 5/8/11 referenciam o script; ausência de `def check_contracts`,
+`range(110)`, `Or inline:`, `async def run_load_test` no markdown.

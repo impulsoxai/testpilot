@@ -405,36 +405,15 @@ cp /tmp/current_run.txt tests/reports/last_run.txt
 
 ## PHASE 5 — CONTRACT TESTS
 
-Verify the API contract hasn't changed in breaking ways.
+Verify the API contract hasn't changed in breaking ways. Roda via script
+standalone — valida tools/list (name, description, inputSchema) e compara com o
+snapshot anterior para detectar breaking changes.
 
-```python
-# For MCP Servers — verify all tools still exist with same schema
-import httpx, json
+```bash
+python scripts/contract_test.py {PRODUCTION_URL}
 
-BASE = "{PRODUCTION_URL}"
-
-def check_contracts():
-    r = httpx.post(f"{BASE}/mcp",
-        json={"jsonrpc":"2.0","id":1,
-              "method":"tools/list","params":{}},
-        timeout=10)
-
-    tools = {t["name"]: t for t in r.json()["result"]["tools"]}
-
-    # Each tool must have: name, description, inputSchema
-    for name, tool in tools.items():
-        assert "description" in tool, f"{name} missing description"
-        assert "inputSchema" in tool, f"{name} missing inputSchema"
-        assert len(tool["description"]) > 10, \
-            f"{name} description too short"
-
-    print(f"✅ {len(tools)} tools have valid contracts")
-
-    # Verify response format consistency
-    # All success responses must start with ✅
-    # All error responses must start with ❌
-
-check_contracts()
+# Comparar com snapshot anterior (detecta tools/params removidos):
+python scripts/contract_test.py {PRODUCTION_URL} --compare tests/reports/contract_snapshot.json
 ```
 
 ### AUTO-CORRECAO — Phase 5
@@ -547,41 +526,6 @@ Verify rate limiting is enforced on the correct endpoint.
 # Run via standalone script — reads RATE_LIMIT_ENDPOINT from environment.
 # If the var is not set, falls back to /health and prints AVISO.
 python scripts/rate_limit_check.py {PRODUCTION_URL}
-```
-
-Or inline:
-
-```python
-import httpx, os
-
-RATE_LIMIT_ENDPOINT = os.environ.get("RATE_LIMIT_ENDPOINT", "").strip() or "/health"
-_used_fallback = not os.environ.get("RATE_LIMIT_ENDPOINT", "").strip()
-
-if _used_fallback:
-    print(
-        "AVISO: usando endpoint padrão '/health' — "
-        "defina RATE_LIMIT_ENDPOINT para o endpoint real do seu projeto."
-    )
-
-url = f"{BASE_URL}{RATE_LIMIT_ENDPOINT}"
-responses = []
-for i in range(110):
-    try:
-        r = httpx.get(url, timeout=5)
-        responses.append(r.status_code)
-    except httpx.ConnectError:
-        break
-
-last_10 = responses[-10:] if len(responses) >= 10 else responses
-has_429 = 429 in last_10
-
-if has_429:
-    print(f"✅ Rate limiting aplicado em {RATE_LIMIT_ENDPOINT} (429 detectado)")
-else:
-    print(
-        f"⚠️  Rate limiting NÃO detectado em {RATE_LIMIT_ENDPOINT} "
-        f"(sem 429 após {len(responses)} requests)"
-    )
 ```
 
 ### AUTO-CORRECAO — Phase 8
@@ -768,51 +712,20 @@ Se aprovado:
 
 ## PHASE 11 — PERFORMANCE TESTS
 
-```python
-# scripts/load_test.py
-import asyncio, httpx, time, statistics
+Roda via script standalone — dispara cargas concorrentes (10/50/100) e mede
+avg/p50/p95/erros por nível.
 
-async def run_load_test(base_url: str):
-    results = {}
+```bash
+python scripts/load_test.py {PRODUCTION_URL}
 
-    for n in [10, 50, 100]:
-        times = []
-        errors = 0
-
-        async with httpx.AsyncClient(timeout=30) as client:
-            async def req():
-                start = time.time()
-                try:
-                    r = await client.get(f"{base_url}/health")
-                    if r.status_code == 200:
-                        return time.time() - start
-                except:
-                    pass
-                return None
-
-            t_start = time.time()
-            raw = await asyncio.gather(*[req() for _ in range(n)])
-            t_total = time.time() - t_start
-
-        valid = [r for r in raw if r]
-        errors = n - len(valid)
-
-        if valid:
-            results[n] = {
-                "avg": statistics.mean(valid) * 1000,
-                "p50": statistics.median(valid) * 1000,
-                "p95": sorted(valid)[int(len(valid)*0.95)] * 1000,
-                "total": t_total,
-                "errors": errors
-            }
-
-    return results
-
-# Thresholds:
-# 10 concurrent: avg < 1000ms, p95 < 3000ms, errors = 0
-# 50 concurrent: avg < 2000ms, p95 < 5000ms, errors < 5%
-# 100 concurrent: avg < 3000ms, p95 < 8000ms, errors < 10%
+# Endpoint específico:
+python scripts/load_test.py {PRODUCTION_URL} /api/algum-endpoint
 ```
+
+Thresholds de referência:
+- 10 concurrent: avg < 1000ms, p95 < 3000ms, errors = 0
+- 50 concurrent: avg < 2000ms, p95 < 5000ms, errors < 5%
+- 100 concurrent: avg < 3000ms, p95 < 8000ms, errors < 10%
 
 ---
 
