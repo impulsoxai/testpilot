@@ -384,22 +384,19 @@ All invalid inputs must return 400/422, never 500.
 
 ## PHASE 4 — REGRESSION TESTS
 
-Check that things that worked before still work.
+Check that things that worked before still work. Roda via script standalone —
+roda a suíte, compara com o baseline anterior (`tests/reports/last_run.json`) e
+**reprova a fase** (`❌`) se algum teste passou antes e falha agora (PASSED →
+FAILED/ERROR). Cross-platform (substitui o bash POSIX-only com `diff`/`grep`/`/tmp`).
 
 ```bash
-# Run the full test suite and compare with last run
-python -m pytest tests/ -v 2>&1 | tee /tmp/current_run.txt
-
-# Compare with previous run if exists
-if [ -f tests/reports/last_run.txt ]; then
-    diff tests/reports/last_run.txt /tmp/current_run.txt \
-      | grep "^[<>]" | grep -E "PASSED|FAILED" || echo "No regressions"
-fi
-
-# Save current run for next comparison
-mkdir -p tests/reports
-cp /tmp/current_run.txt tests/reports/last_run.txt
+python scripts/regression_check.py .
 ```
+
+- Regressão = teste que era `PASSED` e virou `FAILED`/`ERROR`.
+- Falha nova (nunca passou) não é regressão — a Phase 2 já pega.
+- Teste removido/renomeado não é flagado (evita ruído de refactor).
+- Primeira execução (sem baseline) salva o baseline e não compara.
 
 ---
 

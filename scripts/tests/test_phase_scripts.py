@@ -43,6 +43,19 @@ def test_phase8_no_or_inline_marker():
     assert "Or inline:" not in _skill_text()
 
 
+# ── Phase 4 — Regression ──────────────────────────────────────────────────────
+
+def test_phase4_calls_regression_script():
+    assert "scripts/regression_check.py" in _skill_text()
+
+
+def test_phase4_no_posix_bash_diff():
+    """The POSIX-only diff|grep / /tmp / [ -f ] regression bash must be removed."""
+    text = _skill_text()
+    assert "/tmp/current_run.txt" not in text
+    assert "tests/reports/last_run.txt" not in text
+
+
 # ── Phase 11 — Performance ────────────────────────────────────────────────────
 
 def test_phase11_calls_load_test_script():

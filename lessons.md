@@ -476,3 +476,40 @@ Probes HTTP 6/7/9/12 adiados, serão script-com-config (reusam padrão targets).
 **Testes adicionados:** `scripts/tests/test_phase_scripts.py` — 7 casos de
 compliance: Phase 5/8/11 referenciam o script; ausência de `def check_contracts`,
 `range(110)`, `Or inline:`, `async def run_load_test` no markdown.
+
+---
+
+## L-017 — Phase 4: regression bash POSIX-only → regression_check.py (#13b)
+
+**Symptom:** Phase 4 detectava regressão com bash POSIX-only: `pytest | tee
+/tmp/current_run.txt`, `[ -f ]`, `diff ... | grep`, `cp`. Quebra no dev Windows;
+comparava texto bruto de output (frágil a reordenação/timing).
+
+**Root cause:** Lógica de regressão embutida em bash não-portável e não-testável.
+
+**Fix (#13b — fatia 2 de 2 do #13):** `scripts/regression_check.py`, chamado na
+Phase 4. **Reprova** a fase (`sys.exit(1)`) em regressão.
+- `_parse_test_statuses(output)`: pytest -v → `{test_id: PASSED|FAILED|ERROR}`
+  (regex `^\S+::\S+\s+(STATUS)`, ignora linhas não-teste e `[ N%]`).
+- `_find_regressions(prev, curr)`: regressão = era `PASSED`, virou `FAILED/ERROR`.
+  Falha nova (nunca passou) NÃO é regressão (Phase 2 pega). Teste removido NÃO é
+  flagado (ruído de rename/refactor). Resultado ordenado.
+- `_find_newly_passing`: informativo (FAILED → PASSED).
+- Baseline em JSON cross-platform (`tests/reports/last_run.json`), não `/tmp`:
+  `_load_baseline` (None se ausente/inválido) / `_save_baseline` (cria dirs).
+- `_regression_verdict`: sem baseline → salva e não compara; regressões → `❌`;
+  limpo → `✅`.
+
+**Decisão:** regressão reprova o gate (Phase 4 é ✅/❌). Missing/new-fail fora do
+critério, deliberadamente (evita falso-positivo).
+
+**Fecha #13** (escopo da sessão: #13a dedup + #13b regression). Probes HTTP
+6/7/9/12 ADIADOS — quando feitos, serão script-com-config (decisão registrada).
+
+**Commit:** `<pending>` — `feat(regression): cross-platform regression gate replaces POSIX bash (#13b)`
+
+**Testes adicionados:** `scripts/tests/test_regression_check.py` — 16 casos
+(parse basic/error+%/não-teste; regressão passed→failed/error, new-fail/still-
+failing/fixed/missing não-regressão, múltiplas ordenadas; newly-passing; veredito
+sem-baseline/limpo/regressões; baseline roundtrip/missing) + 2 em
+`test_phase_scripts.py` (Phase 4 chama script, sem bash POSIX).
