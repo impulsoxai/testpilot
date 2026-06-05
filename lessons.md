@@ -314,7 +314,7 @@ têm seus próprios falsos positivos (app que ecoa `{{7*7}}` como texto, ou
 legitimamente retorna `49`) — mitigado: SSTI exige que o literal suma; payload+
 contexto sempre no report pro humano julgar.
 
-**Commit:** `<pending>` — `feat(security): positive injection signals per category + MCP tool enumeration (#4c)`
+**Commit:** `9dee69c` — `feat(security): positive injection signals per category + MCP tool enumeration (#4c)`
 
 **Testes adicionados:** `scripts/tests/test_security_signals.py` — 16 casos:
 XSS refletido/escapado/ausente, traversal passwd/win.ini/limpo, SSTI avaliado/
