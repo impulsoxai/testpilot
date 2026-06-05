@@ -506,7 +506,7 @@ critério, deliberadamente (evita falso-positivo).
 **Fecha #13** (escopo da sessão: #13a dedup + #13b regression). Probes HTTP
 6/7/9/12 ADIADOS — quando feitos, serão script-com-config (decisão registrada).
 
-**Commit:** `<pending>` — `feat(regression): cross-platform regression gate replaces POSIX bash (#13b)`
+**Commit:** `ed37f57` — `feat(regression): cross-platform regression gate replaces POSIX bash (#13b)`
 
 **Testes adicionados:** `scripts/tests/test_regression_check.py` — 16 casos
 (parse basic/error+%/não-teste; regressão passed→failed/error, new-fail/still-
