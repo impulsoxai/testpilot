@@ -239,3 +239,43 @@ em issues vazio, config error tem prioridade sobre outras findings.
 
 **Nota:** `lessons.md` tinha L-005 duplicado no fim (resíduo de append anterior) —
 removido nesta edição.
+
+---
+
+## L-011 — security_test.py: rota/shape REST configuráveis via SECURITY_TARGETS (#4b)
+
+**Symptom:** Mesmo com o guard anti-404 (#4a), o modo REST só sabia bater em
+`/test` com `{"input": payload}`. API real → 404 → ERRO honesto, mas ainda sem
+testar as rotas certas. Faltava o caminho para o operador apontar rota+shape reais.
+
+**Root cause:** Acoplamento rígido de rota e shape no código. Skill é genérica —
+não existe rota/body universal.
+
+**Fix (#4b — fatia 2 de 3):** Targets configuráveis.
+- `_load_targets(env_value, default_file)`: lê `SECURITY_TARGETS` (caminho de JSON)
+  ou `testpilot.targets.json` na raiz; aceita `{"targets":[...]}` ou lista nua;
+  retorna None quando vazio/ausente.
+- Marcador `PAYLOAD_MARKER = "§PAYLOAD§"` + `_deep_substitute`: injeta o payload em
+  qualquer campo do body (recursivo em dict/list) ou na rota. Valor que **é** o
+  marcador preserva o tipo cru (None/int/list — para type-confusion); marcador
+  embutido em string maior → `str()`.
+- `_inject_payload(target, payload) -> (method, path, body)`.
+- `_build_requests(...)`: gerador puro de specs `(method, url, body)` — MCP → `/mcp`;
+  REST+targets → 1 request por target; REST sem targets → fallback `/test`.
+- `test_security` agora itera `_build_requests` e usa `client.request(method, ...)`;
+  AVISO explícito quando REST roda sem targets.
+
+**Decisão:** mantida abordagem C (config explícita), NÃO auto-discovery. Funções
+puras (`_inject_payload`, `_build_requests`, `_load_targets`) → testáveis sem mock
+HTTP. `_send_payload` antigo removido (substituído por `_build_requests` + send inline).
+
+**Trade-off:** REST exige config manual de targets — preço de ser honesto e
+genérico. Sem config, o guard #4a garante que o silêncio nunca vira PASS.
+
+**Commit:** `<pending>` — `feat(security): configurable REST targets via SECURITY_TARGETS (#4b)`
+
+**Testes adicionados:** `scripts/tests/test_security_targets.py` — 15 casos:
+injeção em campo flat/nested/path, preservação de tipo no valor-marcador,
+str() em marcador embutido, default/uppercase de method, `_build_requests`
+MCP/targets/fallback, `_load_targets` env/arquivo/lista-nua/None/vazio, constante
+do marcador.

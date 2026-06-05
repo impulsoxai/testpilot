@@ -7,13 +7,21 @@ Built by ImpulsoX AI — github.com/impulsoxai/testpilot
 import argparse
 import httpx
 import json
+import os
 import time
+from pathlib import Path
 
 from _shared import (
     Severity,
     SEVERITY_ICONS,
     print_banner,
 )
+
+# Marker the operator places in a target's path/body where the malicious payload
+# should be injected. See SECURITY_TARGETS / testpilot.targets.json.
+PAYLOAD_MARKER = "§PAYLOAD§"
+TARGETS_ENV_VAR = "SECURITY_TARGETS"
+DEFAULT_TARGETS_FILE = "testpilot.targets.json"
 
 STACK_TRACE_MARKERS = [
     "traceback", "stack trace", "exception",
@@ -156,35 +164,76 @@ MALICIOUS_INPUTS = {
 }
 
 
-def _send_payload(
-    client: httpx.Client,
+def _deep_substitute(obj, payload):
+    """Replace PAYLOAD_MARKER anywhere inside obj with `payload`.
+
+    A value that IS exactly the marker becomes the raw payload (type preserved —
+    None/int/list survive for type-confusion probes). A marker embedded in a
+    larger string is str()-substituted.
+    """
+    if obj == PAYLOAD_MARKER:
+        return payload
+    if isinstance(obj, dict):
+        return {k: _deep_substitute(v, payload) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_deep_substitute(v, payload) for v in obj]
+    if isinstance(obj, str) and PAYLOAD_MARKER in obj:
+        return obj.replace(PAYLOAD_MARKER, str(payload))
+    return obj
+
+
+def _inject_payload(target: dict, payload) -> tuple[str, str, dict | None]:
+    """Substitute the marker in a target's path and body. Returns (method, path, body)."""
+    method = str(target.get("method", "POST")).upper()
+    path = str(target.get("path", "/")).replace(PAYLOAD_MARKER, str(payload))
+    body = _deep_substitute(target.get("body"), payload)
+    return method, path, body
+
+
+def _load_targets(
+    env_value: str | None = None,
+    default_file: str = DEFAULT_TARGETS_FILE,
+) -> list[dict] | None:
+    """
+    Load REST security targets. Reads SECURITY_TARGETS (a JSON file path) or, if
+    unset, the default testpilot.targets.json. Accepts {"targets": [...]} or a
+    bare list. Returns None when nothing is configured or the list is empty.
+    """
+    raw = (env_value if env_value is not None else os.environ.get(TARGETS_ENV_VAR, "")).strip()
+    path = raw or default_file
+    p = Path(path)
+    if not p.exists():
+        return None
+    data = json.loads(p.read_text(encoding="utf-8"))
+    targets = data.get("targets") if isinstance(data, dict) else data
+    return targets or None
+
+
+def _build_requests(
     base_url: str,
     payload,
     test_mcp: bool,
     tool_name: str | None,
+    targets: list[dict] | None,
     request_id: int,
-) -> httpx.Response:
-    """Send a single payload to the target."""
+):
+    """Yield (method, url, json_body) request specs for one payload."""
     if test_mcp and tool_name:
-        r = client.post(
-            f"{base_url}/mcp",
-            json={
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "method": "tools/call",
-                "params": {"name": tool_name, "arguments": {"input": payload}},
-            },
-            headers={"Content-Type": "application/json"},
-            timeout=10,
-        )
-    else:
-        r = client.post(
-            f"{base_url}/test",
-            json={"input": payload},
-            headers={"Content-Type": "application/json"},
-            timeout=10,
-        )
-    return r
+        yield "POST", f"{base_url}/mcp", {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "method": "tools/call",
+            "params": {"name": tool_name, "arguments": {"input": payload}},
+        }
+        return
+
+    if targets:
+        for target in targets:
+            method, path, body = _inject_payload(target, payload)
+            yield method, f"{base_url}{path}", body
+        return
+
+    yield "POST", f"{base_url}/test", {"input": payload}
 
 
 def test_security(
@@ -195,6 +244,13 @@ def test_security(
     """Test API security against common attack vectors. Returns issues by category."""
     issues = {}
     all_statuses: list[int] = []
+    targets = _load_targets() if not test_mcp else None
+    if not test_mcp and not targets:
+        print(
+            f"AVISO: nenhum target configurado — usando fallback '/test'. "
+            f"Defina {TARGETS_ENV_VAR} (ou crie {DEFAULT_TARGETS_FILE}) com as "
+            f"rotas e shapes reais; use o marcador {PAYLOAD_MARKER} onde o payload entra."
+        )
 
     with httpx.Client() as client:
         for category, payloads in MALICIOUS_INPUTS.items():
@@ -204,30 +260,37 @@ def test_security(
                 payload_repr = str(payload)[:100]
 
                 try:
-                    t0 = time.time()
-                    r = _send_payload(client, base_url, payload, test_mcp, tool_name, i)
-                    elapsed = time.time() - t0
-                    all_statuses.append(r.status_code)
-                    response_lower = r.text.lower()
-
-                    if r.status_code == 500:
-                        category_issues.append({
-                            "payload": payload_repr,
-                            "issue": "Server returned 500",
-                            "severity": Severity.CRITICAL,
-                        })
-
-                    if any(marker in response_lower for marker in STACK_TRACE_MARKERS):
-                        category_issues.append({
-                            "payload": payload_repr,
-                            "issue": "Stack trace exposed",
-                            "severity": Severity.CRITICAL,
-                        })
-
-                    if category == "sql_injection":
-                        category_issues.extend(
-                            _check_sql_injection_signals(r.text, elapsed, payload_repr)
+                    for method, url, body in _build_requests(
+                        base_url, payload, test_mcp, tool_name, targets, i
+                    ):
+                        t0 = time.time()
+                        r = client.request(
+                            method, url, json=body,
+                            headers={"Content-Type": "application/json"},
+                            timeout=10,
                         )
+                        elapsed = time.time() - t0
+                        all_statuses.append(r.status_code)
+                        response_lower = r.text.lower()
+
+                        if r.status_code == 500:
+                            category_issues.append({
+                                "payload": payload_repr,
+                                "issue": "Server returned 500",
+                                "severity": Severity.CRITICAL,
+                            })
+
+                        if any(marker in response_lower for marker in STACK_TRACE_MARKERS):
+                            category_issues.append({
+                                "payload": payload_repr,
+                                "issue": "Stack trace exposed",
+                                "severity": Severity.CRITICAL,
+                            })
+
+                        if category == "sql_injection":
+                            category_issues.extend(
+                                _check_sql_injection_signals(r.text, elapsed, payload_repr)
+                            )
 
                 except httpx.ConnectError:
                     category_issues.append({

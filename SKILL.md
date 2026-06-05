@@ -645,6 +645,43 @@ for payload in MALICIOUS_INPUTS:
     # 4. Not execute the payload
 ```
 
+### Execução — via script standalone
+
+```bash
+# REST: configure os alvos reais (rota + shape) antes de rodar
+python scripts/security_test.py {PRODUCTION_URL}
+
+# MCP: descobre e testa as tools
+python scripts/security_test.py {PRODUCTION_URL} --mcp tool_name
+```
+
+### Configuração de targets (REST) — `SECURITY_TARGETS`
+
+A rota `/test` é apenas fallback. Uma API real responde **404 em `/test`** — e o
+guard anti-404 (#4a) marca a fase como `🚫 ERRO — alvo não testável`, **nunca PASS**.
+Para testar de verdade, configure as rotas e shapes reais.
+
+`SECURITY_TARGETS` = caminho para um JSON (ou crie `testpilot.targets.json` na
+raiz). Use o marcador `§PAYLOAD§` onde o payload malicioso deve entrar — em
+qualquer campo do body ou na própria rota:
+
+```json
+{
+  "targets": [
+    {"method": "POST", "path": "/api/reservation",
+     "body": {"name": "§PAYLOAD§", "party_size": 2}},
+    {"method": "POST", "path": "/token",
+     "body": {"client_id": "§PAYLOAD§"}},
+    {"method": "GET", "path": "/users/§PAYLOAD§"}
+  ]
+}
+```
+
+- Um valor que **é** exatamente `§PAYLOAD§` preserva o tipo do payload
+  (None/int/list sobrevivem para os probes de type-confusion).
+- `§PAYLOAD§` embutido numa string maior → substituição via `str()`.
+- Cada target vira 1 request por payload. Sem targets → fallback `/test` + AVISO.
+
 ### AUTO-CORRECAO — Phase 10
 
 Se encontrar vulnerabilidades:
