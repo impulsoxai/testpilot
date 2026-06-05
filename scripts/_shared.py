@@ -8,7 +8,7 @@ from enum import Enum
 
 import httpx
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 
 class Severity(str, Enum):

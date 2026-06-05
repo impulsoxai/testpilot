@@ -24,7 +24,7 @@ Claude will scan your project, detect the stack, and run all 13 phases automatic
 ## What you'll see
 
 ```
-🔍 TestPilot v1.1.0 — Discovery
+🔍 TestPilot v1.2.0 — Discovery
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Project: ImpulsoX-CRM
 Type: REST API
@@ -75,10 +75,10 @@ Security: clean | P95: 120ms
 | 7 | Cache | Cache is working correctly |
 | 8 | Rate limiting | Limits are enforced |
 | 9 | Encoding | UTF-8, accents, emojis, RTL |
-| 10 | Security | 20+ malicious input patterns |
+| 10 | Security | Dependency audit (CVEs) + 20+ malicious input patterns |
 | 11 | Performance | 10/50/100 concurrent requests |
 | 12 | Recovery | Server recovers after errors |
-| 13 | Code Quality | Dead code, docstrings, /simplify |
+| 13 | Code Quality | ruff (Python) / eslint (Node) — warning only |
 
 ## Complete Invocation Example
 
@@ -109,27 +109,42 @@ Posso corrigir automaticamente? (s/n)
 
 ## CLI Scripts
 
-Each script can run standalone:
+Each script runs standalone. All support `--help` and (where applicable) `--json` for CI/CD.
 
 ```bash
-# Security tests
-python .claude/skills/testpilot/scripts/security_test.py https://api.example.com
-python .claude/skills/testpilot/scripts/security_test.py https://api.example.com --json
+# Security — configurable targets, positive injection signals, MCP enum
+python scripts/security_test.py https://api.example.com
+python scripts/security_test.py https://api.example.com --mcp          # enumerate tools/list
 
-# Contract validation
-python .claude/skills/testpilot/scripts/contract_test.py https://api.example.com
-python .claude/skills/testpilot/scripts/contract_test.py https://api.example.com --compare previous.json
+# Contract — schema validation + breaking-change detection
+python scripts/contract_test.py https://api.example.com
+python scripts/contract_test.py https://api.example.com --compare tests/reports/contract_snapshot.json
+
+# Dependency audit — fails on known CVEs (AUDIT_FAIL_LEVEL=high)
+python scripts/dep_audit.py .
+AUDIT_IGNORE=GHSA-xxxx python scripts/dep_audit.py .   # accept a known advisory
+
+# Build gate — npm run build or tsc --noEmit before tests
+python scripts/build_check.py .
+
+# Regression — PASSED→FAILED detection vs JSON baseline
+python scripts/regression_check.py .
+
+# Rate limiting
+python scripts/rate_limit_check.py https://api.example.com
+RATE_LIMIT_ENDPOINT=/token python scripts/rate_limit_check.py https://api.example.com
 
 # Load testing
-python .claude/skills/testpilot/scripts/load_test.py https://api.example.com
-python .claude/skills/testpilot/scripts/load_test.py https://api.example.com /api/users --json
+python scripts/load_test.py https://api.example.com
+python scripts/load_test.py https://api.example.com /api/users --json
+
+# Code quality (lint — warning only, never blocks)
+python scripts/lint_check.py .
 
 # Report generation
-python .claude/skills/testpilot/scripts/report_generator.py results.json
-python .claude/skills/testpilot/scripts/report_generator.py results.json --output report.md
+python scripts/report_generator.py results.json
+python scripts/report_generator.py results.json --output report.md
 ```
-
-All scripts support `--help` for usage info and `--json` for CI/CD integration.
 
 ## Dependencies
 
@@ -137,6 +152,10 @@ All scripts support `--help` for usage info and `--json` for CI/CD integration.
 |---------|----------|---------|
 | httpx | Yes | HTTP requests for integration/security/performance tests |
 | Python 3.10+ | Yes | Script execution |
+| pip-audit | Optional | Dependency vulnerability gate (Phase 10) |
+| ruff | Optional | Python linter (Phase 13 — falls back to pyflakes) |
+| pyflakes | Optional | Python linter fallback (Phase 13) |
+| eslint | Optional | Node/JS linter (Phase 13) |
 
 All other imports use Python standard library.
 
@@ -153,12 +172,9 @@ All other imports use Python standard library.
 Install the dependency: `pip install httpx`
 
 ### `UnicodeEncodeError` on Windows
-Some scripts use Unicode characters (box-drawing, emojis). Run in a terminal that supports UTF-8:
-```bash
-# PowerShell
-$env:PYTHONIOENCODING = "utf-8"
-python .claude/skills/testpilot/scripts/security_test.py https://api.example.com
-```
+Fixed in v1.2.0 — `print_banner` now degrades gracefully on cp1252/ASCII consoles
+(emoji becomes `?` instead of crashing). If you see this in an older version,
+set `$env:PYTHONIOENCODING = "utf-8"` and upgrade to v1.2.0.
 
 ### Integration/Performance phases skipped
 These phases require a running server. If `PRODUCTION_URL` is not found in CLAUDE.md or .env.example, they are marked `⏭️ SKIPPED`. Add your URL to `.env.example`:
@@ -189,19 +205,27 @@ python .claude/skills/testpilot/scripts/security_test.py https://api.example.com
 
 ```
 testpilot/
-├── SKILL.md                    # Claude instructions (939 lines)
+├── SKILL.md                    # Claude instructions (~1000 lines)
 ├── README.md                   # This file
 ├── CHANGELOG.md                # Version history
+├── lessons.md                  # Bugs found and fixed (L-001 to L-017)
 ├── references/
 │   └── phases.md               # 13 phases documentation
 ├── expected_outputs/
 │   └── report_example.md       # Example report output
 └── scripts/
-    ├── _shared.py              # Shared utilities (Severity, mcp_call, etc.)
-    ├── security_test.py        # 20+ attack vectors
-    ├── contract_test.py        # API schema validation
-    ├── load_test.py            # Concurrent performance tests
-    └── report_generator.py     # Formatted QA reports
+    ├── _shared.py              # Shared utilities (Severity, mcp_call, VERSION)
+    ├── security_test.py        # Configurable targets, positive injection signals
+    ├── contract_test.py        # MCP schema validation + breaking-change detection
+    ├── load_test.py            # Concurrent performance tests (10/50/100)
+    ├── report_generator.py     # Formatted QA reports
+    ├── env_check.py            # .env file parser (Phase 1)
+    ├── rate_limit_check.py     # Rate-limit probe (configurable endpoint)
+    ├── dep_audit.py            # Dependency CVE gate — pip-audit + npm audit
+    ├── build_check.py          # Build gate — npm run build / tsc --noEmit
+    ├── regression_check.py     # Regression gate — PASSED→FAILED vs JSON baseline
+    ├── lint_check.py           # ruff / eslint (warning only)
+    └── tests/                  # 209 pytest tests covering all scripts
 ```
 
 ## Built by
