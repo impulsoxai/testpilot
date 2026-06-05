@@ -230,7 +230,7 @@ gate falha honestamente em vez de aprovar no vazio. Abordagem escolhida: config
 explícita + guard, NÃO auto-discovery (crawler OpenAPI = over-engineering, frágil,
 Regra #16).
 
-**Commit:** `<pending>` — `fix(security): guard against false-GREEN when target route returns 404 (#4a)`
+**Commit:** `c827af0` — `fix(security): guard against false-GREEN when target route returns 404 (#4a)`
 
 **Testes adicionados:** `scripts/tests/test_security_guard.py` — 11 casos:
 all-404/all-405/misto unreachable, algum 200 / 500 / lista vazia não-unreachable,
