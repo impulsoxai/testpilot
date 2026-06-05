@@ -439,7 +439,7 @@ genéricos.
 **Fecha #10** (2 fatias: #10a dep audit, #10b build gate). Supply chain e build
 agora travam o gate de verdade.
 
-**Commit:** `<pending>` — `feat(build): build gate before unit tests (#10b)`
+**Commit:** `f446ca1` — `feat(build): build gate before unit tests (#10b)`
 
 **Testes adicionados:** `scripts/tests/test_build_check.py` — 16 casos:
 load package.json (valid/missing/inválido), `_has_build_script` (true/sem-build/
