@@ -205,21 +205,37 @@ marcadores MySQL/PG/SQLite/Oracle/MSSQL, constante SLOW_REQUEST_THRESHOLD_S.
 
 ---
 
-## L-005 — _shared.py: dict chamado como função em format_severity
+## L-010 — security_test.py: rota /test hardcoded → falso VERDE no gate (#4a)
 
-**Symptom:** `format_severity("critical")` lançava `TypeError: 'dict' object is
-not callable`. Função inútil para todas as entradas válidas.
+**Symptom:** Modo REST batia em `/test` hardcoded com `{"input": payload}`. API
+real responde 404 em todos os payloads → loop não acha 500 nem stack trace →
+`issues={}` → `get_security_verdict()` retorna `✅ PASS`. Gate de segurança
+aprovava sem ter testado nada — pior que falso negativo: o report afirmava
+"no vulnerabilities found" quando nenhum payload chegou na lógica real.
 
-**Root cause:** `SEVERITY_ICONS(Severity(severity))` — parênteses em cima de um
-dict (não colchetes). O `except (ValueError, KeyError)` não pega `TypeError`, então
-a exceção escapava para o chamador.
+**Root cause:** Acoplamento rígido de rota (`/test`) + shape (`{"input": ...}`).
+Sem rota válida, a ausência de erro vira "aprovado" em vez de "não testável".
 
-**Fix:** Trocar `SEVERITY_ICONS(key)` por `SEVERITY_ICONS.get(key, "⚪")`. Dict
-`.get()` lida com chaves ausentes nativamente; `except` reduzido para só `ValueError`
-(levantado por `Severity(invalid_string)`).
+**Fix (#4a — fatia 1 de 3):** Guard anti-404. Coletar `status_code` de cada
+probe; se `_is_unreachable(all_statuses)` (todos 404/405) → registrar issue na
+categoria reservada `CONFIG_ERROR_CATEGORY = "_config"` com CRITICAL, e
+`get_security_verdict` retorna `🚫 ERRO — alvo não testável` ANTES de checar PASS.
+Sem rota válida → nunca PASS. `_is_unreachable([])` é False (sem resposta =
+problema de conexão, tratado em outro ramo). Um único status ≠ 404/405 (ex: 500,
+200) significa que a rota existe → resultado real, não config error.
 
-**Commit:** `9091e0a` — `fix(_shared): format_severity uses .get() instead of calling dict as function`
+**Trade-off:** REST ainda exige config de rota/shape reais (vem em #4b via
+`SECURITY_TARGETS`). #4a sozinho não testa as rotas certas — mas para de MENTIR:
+gate falha honestamente em vez de aprovar no vazio. Abordagem escolhida: config
+explícita + guard, NÃO auto-discovery (crawler OpenAPI = over-engineering, frágil,
+Regra #16).
 
-**Testes adicionados:** `scripts/tests/test_format_severity.py` — 7 casos:
-ícone correto por severidade, default para string inválida/vazia/uppercase,
-guard `test_never_raises` verifica que nenhuma entrada propaga exceção.
+**Commit:** `<pending>` — `fix(security): guard against false-GREEN when target route returns 404 (#4a)`
+
+**Testes adicionados:** `scripts/tests/test_security_guard.py` — 11 casos:
+all-404/all-405/misto unreachable, algum 200 / 500 / lista vazia não-unreachable,
+constante `UNREACHABLE_STATUSES`, veredito não-PASS com config error, PASS genuíno
+em issues vazio, config error tem prioridade sobre outras findings.
+
+**Nota:** `lessons.md` tinha L-005 duplicado no fim (resíduo de append anterior) —
+removido nesta edição.

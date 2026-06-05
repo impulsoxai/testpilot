@@ -31,6 +31,24 @@ DB_ERROR_MARKERS = [
 
 SLOW_REQUEST_THRESHOLD_S = 3.0
 
+# Statuses that mean "this route does not exist / wrong method" — not a finding.
+UNREACHABLE_STATUSES = frozenset({404, 405})
+
+# Reserved issue category for target-misconfiguration. Its presence forces a
+# non-PASS verdict so the gate never reports GREEN against a route that 404s.
+CONFIG_ERROR_CATEGORY = "_config"
+
+
+def _is_unreachable(status_codes: list[int]) -> bool:
+    """
+    True when every probe hit a missing route (all 404/405).
+
+    Empty list → False (no responses captured; a connection-level problem,
+    handled elsewhere). A single non-404/405 status → the route exists, so a
+    500 or a clean 200 is a real result, not a config error.
+    """
+    return bool(status_codes) and all(s in UNREACHABLE_STATUSES for s in status_codes)
+
 
 def _check_sql_injection_signals(
     response_text: str,
@@ -176,6 +194,7 @@ def test_security(
 ) -> dict[str, list[dict]]:
     """Test API security against common attack vectors. Returns issues by category."""
     issues = {}
+    all_statuses: list[int] = []
 
     with httpx.Client() as client:
         for category, payloads in MALICIOUS_INPUTS.items():
@@ -188,6 +207,7 @@ def test_security(
                     t0 = time.time()
                     r = _send_payload(client, base_url, payload, test_mcp, tool_name, i)
                     elapsed = time.time() - t0
+                    all_statuses.append(r.status_code)
                     response_lower = r.text.lower()
 
                     if r.status_code == 500:
@@ -224,6 +244,18 @@ def test_security(
 
             if category_issues:
                 issues[category] = category_issues
+
+        if _is_unreachable(all_statuses):
+            issues[CONFIG_ERROR_CATEGORY] = [{
+                "payload": "N/A",
+                "issue": (
+                    f"All {len(all_statuses)} probes returned 404/405 — the target "
+                    "route does not exist. No payload reached real logic, so this is "
+                    "NOT a pass. Configure the correct endpoint/shape "
+                    "(SECURITY_TARGETS) and re-run."
+                ),
+                "severity": Severity.CRITICAL,
+            }]
 
         health = client.get(f"{base_url}/health", timeout=5)
         if health.status_code != 200:
@@ -268,6 +300,9 @@ def format_security_report(issues: dict[str, list[dict]]) -> str:
 
 def get_security_verdict(issues: dict[str, list[dict]]) -> str:
     """Return overall security verdict."""
+    if CONFIG_ERROR_CATEGORY in issues:
+        return "🚫 ERRO — alvo não testável (configure SECURITY_TARGETS)"
+
     if not issues:
         return "✅ PASS"
 
