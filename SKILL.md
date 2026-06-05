@@ -273,6 +273,23 @@ Se aprovado:
 
 ## PHASE 2 — UNIT TESTS
 
+### Build gate (reprova a fase — roda ANTES dos testes)
+
+Build quebrado torna todo o resto sem sentido. Compila primeiro, testa depois.
+Reprova a Phase 2 (`❌`) se o build falhar.
+
+```bash
+python scripts/build_check.py .
+```
+
+- Node: `npm run build` se houver script `build`; senão `npx --no-install tsc
+  --noEmit` se existir `tsconfig.json`.
+- Python puro: SKIP (sem build universal — os unit tests já pegam erro de
+  import/sintaxe).
+- Ferramenta ausente (`npm`/`npx`) → SKIP + AVISO.
+
+### Unit tests
+
 ```bash
 # Python
 python -m pytest tests/ -v --tb=short \

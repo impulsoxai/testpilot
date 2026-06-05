@@ -409,3 +409,39 @@ não parsear CVSS à mão — frágil).
 fail-level default/override/inválido, parse ignore, build commands, parse npm
 (counts/vazio), `_npm_exceeds` (high/critical/só-moderate/limpo/moderate),
 parse pip (dependencies/lista-nua/ignore/sem-vuln), veredito skip/pass/fail.
+
+---
+
+## L-015 — Lacuna: sem gate de build → fases rodavam sobre build morto (#10b)
+
+**Symptom:** `tsc`/`npm run build` quebrado não reprovava nada. Integração, perf e
+recovery rodavam sobre um build que nem compila — resultado sem sentido.
+
+**Root cause:** Faltava a verificação. Nenhuma fase checava "isto compila?".
+
+**Fix (#10b — fatia 2 de 2):** `scripts/build_check.py`, chamado no **início da
+Phase 2** (antes dos unit tests — compila primeiro, testa depois). **Reprova** a
+fase (`sys.exit(1)`) em build não-zero.
+- Node: `npm run build` se `package.json` tem script `build`; senão `npx
+  --no-install tsc --noEmit` se existir `tsconfig.json`.
+- Python puro: SKIP (sem build universal; unit tests pegam import/sintaxe).
+- `npm`/`npx` ausente → SKIP + AVISO.
+- Funções puras: `_load_package_json` (None se ausente/inválido), `_has_build_script`,
+  `_detect_build_command` (build script tem prioridade sobre tsconfig; None = skip),
+  `_build_verdict` (skip/pass/`❌` fail).
+
+**Decisão (confirmada pelo usuário):** Python puro = SKIP (não forçar passo vazio);
+build gate é Node/TS-focused.
+
+**Regra #16:** detecção simples por intenção, sem abstrair para "build systems"
+genéricos.
+
+**Fecha #10** (2 fatias: #10a dep audit, #10b build gate). Supply chain e build
+agora travam o gate de verdade.
+
+**Commit:** `<pending>` — `feat(build): build gate before unit tests (#10b)`
+
+**Testes adicionados:** `scripts/tests/test_build_check.py` — 16 casos:
+load package.json (valid/missing/inválido), `_has_build_script` (true/sem-build/
+sem-scripts/None), `_detect_build_command` (npm/tsc/prioridade/None×2), veredito
+skip/pass/fail + guard fail em qualquer exit não-zero.
