@@ -279,3 +279,48 @@ injeção em campo flat/nested/path, preservação de tipo no valor-marcador,
 str() em marcador embutido, default/uppercase de method, `_build_requests`
 MCP/targets/fallback, `_load_targets` env/arquivo/lista-nua/None/vazio, constante
 do marcador.
+
+---
+
+## L-012 — security_test.py: confirmação por sinal positivo + enum MCP (#4c)
+
+**Symptom:** Fora SQL (já corrigido no #8), as outras categorias só viam 500/stack
+trace. XSS, path traversal, SSTI e command injection passavam despercebidos quando
+o servidor respondia 200 — mesmo tendo refletido o payload, vazado `/etc/passwd`
+ou avaliado um template. Detecção por ausência de erro = cego para injeção real.
+
+**Root cause:** Faltavam detectores específicos. "Não deu 500" não prova que o
+input foi tratado — pode ter sido executado com sucesso.
+
+**Fix (#4c — fatia 3 de 3):** Detector puro por categoria, busca evidência de que
+o payload AGIU:
+- `_check_xss_reflection`: payload com `<`/`javascript:` refletido literal (não
+  escapado) no body → WARNING. Reflexão escapada (`&lt;`) não dispara.
+- `_check_path_traversal`: conteúdo de arquivo de sistema (`TRAVERSAL_MARKERS`:
+  `root:x:0:0`, `[boot loader]`...) → CRITICAL.
+- `_check_ssti`: payload com `7*7` que vira `49` no body E o literal `7*7` some →
+  template avaliado → CRITICAL. Reflexão literal não dispara; `{{config}}` ignorado
+  pela heurística aritmética.
+- `_check_command_injection`: saída de comando no body (`CMDI_MARKERS`: `uid=`,
+  `gid=`, `root:x:0:0`, dir do Windows) → CRITICAL.
+
+**MCP enum:** `_parse_tool_names(data)` (puro) + `_discover_mcp_tools(client, url)`
+(HTTP). Em `--mcp` sem tool_name, descobre via `tools/list` e testa CADA tool.
+Sem tools → AVISO, não PASS. Loop de `tool_names` envolve `_build_requests`.
+
+**Decisão:** funções puras → testáveis sem mock HTTP (só `_discover_mcp_tools` toca
+rede, e a parte de parsing foi extraída pra `_parse_tool_names`). Sinais positivos
+têm seus próprios falsos positivos (app que ecoa `{{7*7}}` como texto, ou
+legitimamente retorna `49`) — mitigado: SSTI exige que o literal suma; payload+
+contexto sempre no report pro humano julgar.
+
+**Commit:** `<pending>` — `feat(security): positive injection signals per category + MCP tool enumeration (#4c)`
+
+**Testes adicionados:** `scripts/tests/test_security_signals.py` — 16 casos:
+XSS refletido/escapado/ausente, traversal passwd/win.ini/limpo, SSTI avaliado/
+refletido-literal/variante-${}/não-aritmético, cmdi id/passwd/limpo, `_parse_tool_names`
+extrai/pula-sem-nome/vazio-em-erro.
+
+**Fecha #4** (3 fatias: #4a guard, #4b targets, #4c sinais). Gate de segurança
+agora: bate na rota certa (config), confirma injeção por evidência, e nunca
+reporta PASS no vazio.

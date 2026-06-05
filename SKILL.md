@@ -682,6 +682,26 @@ qualquer campo do body ou na própria rota:
 - `§PAYLOAD§` embutido numa string maior → substituição via `str()`.
 - Cada target vira 1 request por payload. Sem targets → fallback `/test` + AVISO.
 
+### Confirmação por sinal positivo (não só ausência de 500)
+
+O veredito não depende só de "não quebrou". Cada categoria tem um detector que
+busca **evidência de que o payload agiu**:
+
+| Categoria | Sinal positivo | Severidade |
+|---|---|---|
+| `sql_injection` | erro de banco no body, ou resposta > 3s (time-based) | WARNING |
+| `xss` | payload refletido **sem escape** (`<script>` literal volta) | WARNING |
+| `path_traversal` | conteúdo de arquivo de sistema (`root:x:0:0`, `[boot loader]`) | CRITICAL |
+| `template_injection` | `{{7*7}}` avaliado para `49` no body | CRITICAL |
+| `command_injection` | saída de comando no body (`uid=`, `root:x:0:0`) | CRITICAL |
+
+500 e stack trace continuam sendo CRITICAL em qualquer categoria.
+
+### MCP — descoberta de tools
+
+Em `--mcp` sem nome de tool, o script chama `tools/list` e testa **cada** tool
+descoberta. Sem tools → AVISO ("nada a testar"), não PASS silencioso.
+
 ### AUTO-CORRECAO — Phase 10
 
 Se encontrar vulnerabilidades:

@@ -92,6 +92,92 @@ def _check_sql_injection_signals(
     return issues
 
 
+# System-file content that proves a path-traversal payload actually read a file.
+TRAVERSAL_MARKERS = [
+    "root:x:0:0", "root:*:0:0", "daemon:x:",   # /etc/passwd, /etc/shadow
+    "[boot loader]", "[fonts]",                 # Windows boot.ini / win.ini
+    "; for 16-bit app support",
+]
+
+# Command output that proves a command-injection payload executed.
+CMDI_MARKERS = [
+    "uid=", "gid=",                # id / whoami output
+    "root:x:0:0",                  # cat /etc/passwd via injection
+    "volume serial number",        # Windows dir
+    "directory of c:\\",
+]
+
+
+def _check_xss_reflection(response_text: str, payload: str, payload_repr: str) -> list[dict]:
+    """Flag when an XSS payload is reflected UNescaped (raw markup survives)."""
+    if not payload or ("<" not in payload and "javascript:" not in payload.lower()):
+        return []
+    if payload in response_text:
+        return [{
+            "payload": payload_repr,
+            "issue": "XSS payload reflected unescaped in response",
+            "severity": Severity.WARNING,
+        }]
+    return []
+
+
+def _check_path_traversal(response_text: str, payload_repr: str) -> list[dict]:
+    """Flag when system-file content leaks into the response."""
+    body_lower = response_text.lower()
+    if any(marker in body_lower for marker in TRAVERSAL_MARKERS):
+        return [{
+            "payload": payload_repr,
+            "issue": "System file content leaked (path traversal succeeded)",
+            "severity": Severity.CRITICAL,
+        }]
+    return []
+
+
+def _check_ssti(response_text: str, payload: str, payload_repr: str) -> list[dict]:
+    """Flag when an arithmetic SSTI probe (7*7) evaluates to 49 in the body."""
+    if "7*7" not in payload:
+        return []
+    if "49" in response_text and "7*7" not in response_text:
+        return [{
+            "payload": payload_repr,
+            "issue": "Template expression evaluated (7*7 -> 49) — server-side template injection",
+            "severity": Severity.CRITICAL,
+        }]
+    return []
+
+
+def _check_command_injection(response_text: str, payload_repr: str) -> list[dict]:
+    """Flag when command output appears in the response."""
+    body_lower = response_text.lower()
+    if any(marker in body_lower for marker in CMDI_MARKERS):
+        return [{
+            "payload": payload_repr,
+            "issue": "Command output in response (command injection succeeded)",
+            "severity": Severity.CRITICAL,
+        }]
+    return []
+
+
+def _parse_tool_names(data: dict) -> list[str]:
+    """Extract tool names from an MCP tools/list response. Empty on error/none."""
+    tools = data.get("result", {}).get("tools", []) if isinstance(data, dict) else []
+    return [t["name"] for t in tools if isinstance(t, dict) and "name" in t]
+
+
+def _discover_mcp_tools(client: httpx.Client, base_url: str) -> list[str]:
+    """Query the MCP server's tools/list and return tool names. Empty on failure."""
+    try:
+        r = client.post(
+            f"{base_url}/mcp",
+            json={"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}},
+            headers={"Content-Type": "application/json"},
+            timeout=10,
+        )
+        return _parse_tool_names(r.json())
+    except Exception:
+        return []
+
+
 MALICIOUS_INPUTS = {
     "sql_injection": [
         "'; DROP TABLE users; --",
@@ -253,6 +339,13 @@ def test_security(
         )
 
     with httpx.Client() as client:
+        if test_mcp:
+            tool_names = [tool_name] if tool_name else _discover_mcp_tools(client, base_url)
+            if not tool_names:
+                print("AVISO: nenhuma tool MCP encontrada via tools/list — nada a testar.")
+        else:
+            tool_names = [None]
+
         for category, payloads in MALICIOUS_INPUTS.items():
             category_issues = []
 
@@ -260,9 +353,12 @@ def test_security(
                 payload_repr = str(payload)[:100]
 
                 try:
-                    for method, url, body in _build_requests(
-                        base_url, payload, test_mcp, tool_name, targets, i
-                    ):
+                    requests_iter = (
+                        spec
+                        for tn in tool_names
+                        for spec in _build_requests(base_url, payload, test_mcp, tn, targets, i)
+                    )
+                    for method, url, body in requests_iter:
                         t0 = time.time()
                         r = client.request(
                             method, url, json=body,
@@ -290,6 +386,22 @@ def test_security(
                         if category == "sql_injection":
                             category_issues.extend(
                                 _check_sql_injection_signals(r.text, elapsed, payload_repr)
+                            )
+                        elif category == "xss":
+                            category_issues.extend(
+                                _check_xss_reflection(r.text, str(payload), payload_repr)
+                            )
+                        elif category == "path_traversal":
+                            category_issues.extend(
+                                _check_path_traversal(r.text, payload_repr)
+                            )
+                        elif category == "template_injection":
+                            category_issues.extend(
+                                _check_ssti(r.text, str(payload), payload_repr)
+                            )
+                        elif category == "command_injection":
+                            category_issues.extend(
+                                _check_command_injection(r.text, payload_repr)
                             )
 
                 except httpx.ConnectError:
