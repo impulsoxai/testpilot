@@ -11,8 +11,6 @@ import sys
 
 import httpx
 
-from _shared import VERSION
-
 FALLBACK_ENDPOINT = "/health"
 ENDPOINT_ENV_VAR = "RATE_LIMIT_ENDPOINT"
 

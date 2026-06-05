@@ -7,7 +7,6 @@ tests are not regressions (rename/refactor). Baseline stored as JSON (not /tmp),
 cross-platform. A regression FAILS the phase.
 """
 
-import json
 import sys
 import os
 

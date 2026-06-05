@@ -4,7 +4,6 @@ TDD — fix #14: dead imports, VERSION constant, SKILL.md description.
 
 import subprocess
 import sys
-import re
 from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).parent.parent
@@ -20,7 +19,7 @@ CHECKED_FILES = [
 ]
 
 
-# ── Dead imports ──────────────────────────────────────────────────────────────
+# ── Dead imports (scripts) ────────────────────────────────────────────────────
 
 def test_no_unused_imports():
     """pyflakes must report zero 'imported but unused' warnings across all scripts."""
@@ -35,7 +34,28 @@ def test_no_unused_imports():
         if "imported but unused" in line
     ]
     assert unused == [], (
-        f"Unused imports found:\n" + "\n".join(unused)
+        "Unused imports found:\n" + "\n".join(unused)
+    )
+
+
+def test_no_unused_imports_full_repo():
+    """pyflakes clean across ALL .py files in scripts/ and scripts/tests/."""
+    all_py = (
+        [str(f.relative_to(SCRIPTS_DIR)) for f in SCRIPTS_DIR.glob("*.py")]
+        + [str(f.relative_to(SCRIPTS_DIR)) for f in (SCRIPTS_DIR / "tests").glob("*.py")]
+    )
+    result = subprocess.run(
+        [sys.executable, "-m", "pyflakes"] + all_py,
+        capture_output=True,
+        text=True,
+        cwd=SCRIPTS_DIR,
+    )
+    issues = [
+        line for line in result.stdout.splitlines()
+        if "imported but unused" in line or "f-string is missing placeholders" in line
+    ]
+    assert issues == [], (
+        "pyflakes issues found:\n" + "\n".join(issues)
     )
 
 

@@ -7,8 +7,7 @@ Fix: read RATE_LIMIT_ENDPOINT from env; fallback to /health with explicit AVISO.
 
 import os
 import sys
-from io import StringIO
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from rate_limit_check import get_rate_limit_endpoint, ENDPOINT_ENV_VAR, FALLBACK_ENDPOINT

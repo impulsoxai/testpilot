@@ -8,7 +8,6 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-import pytest
 from env_check import check_env_vars
 
 
