@@ -403,7 +403,7 @@ não parsear CVSS à mão — frágil).
 
 **Regra #16:** 2 ecossistemas reais, funções puras, sem abstração especulativa.
 
-**Commit:** `<pending>` — `feat(deps): dependency-vulnerability gate via pip-audit/npm audit (#10a)`
+**Commit:** `65b0bee` — `feat(deps): dependency-vulnerability gate via pip-audit/npm audit (#10a)`
 
 **Testes adicionados:** `scripts/tests/test_dep_audit.py` — 21 casos:
 fail-level default/override/inválido, parse ignore, build commands, parse npm
