@@ -367,7 +367,7 @@ contornado com `PYTHONIOENCODING=utf-8`. Não é do #9; candidato a fix próprio
 **Sobreposição com #13:** este script já é uma das "fases que viram script" que o
 #13 vai consolidar. Quando #13 for feito, Phase 13 já estará no formato-alvo.
 
-**Commit:** `<pending>` — `feat(lint): replace homegrown grep+ast linter with ruff/eslint (#9)`
+**Commit:** `3bf0dd8` — `feat(lint): replace homegrown grep+ast linter with ruff/eslint (#9)`
 
 **Testes adicionados:** `scripts/tests/test_lint_check.py` — 21 casos:
 detecção Python (ruff/pyflakes/path/none) e Node (local/global/npx/none),
