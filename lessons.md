@@ -324,3 +324,53 @@ extrai/pula-sem-nome/vazio-em-erro.
 **Fecha #4** (3 fatias: #4a guard, #4b targets, #4c sinais). Gate de segurança
 agora: bate na rota certa (config), confirma injeção por evidência, e nunca
 reporta PASS no vazio.
+
+---
+
+## L-013 — Phase 13: linter caseiro (grep+ast) → ruff + eslint (#9)
+
+**Symptom:** Phase 13 reimplementava linter à mão em dois `python -c` no markdown:
+(1) "dead code" via `subprocess.run(['grep','-r',node.name,'src/'])` + heurística
+"nome aparece <2x → morto"; (2) docstring obrigatória em toda função via AST.
+
+**Root cause:** `grep` é POSIX-only → quebra no dev Windows. A heurística de dead
+code é O(funções×arquivos) e falso-positiva em massa (API pública, métodos,
+chamadas dinâmicas, nomes curtos). Reinventava — mal — o que ruff/eslint fazem
+certo. Docstring obrigatória é estilo, ruidoso para um gate.
+
+**Fix (#9):** Novo script `scripts/lint_check.py`.
+- Detecção: Python → `ruff` (via `importlib.util.find_spec`) → fallback `pyflakes`;
+  Node → eslint local (`node_modules/.bin`) → global → `npx --no-install eslint`.
+- Comando cross-platform: `python -m ruff check` / `python -m pyflakes` (sem
+  dependência de PATH no Windows).
+- Parsers puros: `_parse_ruff_output` ("Found N error" → int), `_parse_eslint_output`
+  ("(E errors, W warnings)" → tupla).
+- Veredito **WARN-only**: `_lint_verdict` retorna SKIP/PASS/⚠️, **nunca `❌`**;
+  `main` faz `sys.exit(0)` sempre. Lint não bloqueia o gate.
+- Removidos: heurística dead-code por grep e exigência de docstring. Dead-code real
+  exige call-graph (`vulture`) — deixado como nota de futuro, não reintroduzir
+  heurística ruim. Decisões 1/2/3 confirmadas pelo usuário (WARN, remover docstring,
+  script).
+
+**Regra #16:** 2 linters reais = abstração mínima justificada, não plugin-system
+especulativo.
+
+**Dogfood:** rodando contra `scripts/`, ruff ausente → fallback pyflakes → achou 6
+imports/f-strings mortos pré-existentes em OUTROS arquivos (rate_limit_check.py,
+test_cleanup.py, test_env_check.py, test_rate_limit_check.py). Fora do escopo #9 —
+anotado para aprovação futura. lint_check.py e seus testes: pyflakes limpo.
+
+**Nota de ambiente:** `print_banner` usa emoji 🔍 → crash `UnicodeEncodeError`
+(cp1252) no console PowerShell do Windows. Pré-existente, afeta todos os scripts;
+contornado com `PYTHONIOENCODING=utf-8`. Não é do #9; candidato a fix próprio.
+
+**Sobreposição com #13:** este script já é uma das "fases que viram script" que o
+#13 vai consolidar. Quando #13 for feito, Phase 13 já estará no formato-alvo.
+
+**Commit:** `<pending>` — `feat(lint): replace homegrown grep+ast linter with ruff/eslint (#9)`
+
+**Testes adicionados:** `scripts/tests/test_lint_check.py` — 21 casos:
+detecção Python (ruff/pyflakes/path/none) e Node (local/global/npx/none),
+construção de comando (ruff/pyflakes/npx/path-direto), parse ruff (summary/clean/
+sem-summary) e eslint (summary/vazio), veredito (skip/pass/warn) + guard
+`never_returns_fail_marker` (nunca `❌` em nenhuma combinação).

@@ -812,90 +812,27 @@ def test_recovery(base_url):
 
 ## PHASE 13 — CODE QUALITY
 
+Roda linters reais — `ruff` (Python) e `eslint` (Node) — via script standalone.
+Lint é **somente aviso**: nunca reprova o gate (exit 0 sempre). Cross-platform
+(usa `python -m ruff`, sem dependência de PATH). Sem linter instalado → SKIP
+gracioso com AVISO.
+
 ```bash
-# Recently changed files
-CHANGED=$(git diff --name-only HEAD~1 2>/dev/null \
-          || git diff --name-only)
-echo "Changed files: $CHANGED"
-
-# Run /simplify on each changed file
-
-# Dead code detection
-python -c "
-import ast, glob, sys
-
-dead = []
-for f in glob.glob('src/**/*.py', recursive=True):
-    try:
-        tree = ast.parse(open(f).read())
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.FunctionDef,
-                                  ast.AsyncFunctionDef)):
-                # Check if function is called anywhere
-                import subprocess
-                result = subprocess.run(
-                    ['grep', '-r', node.name, 'src/'],
-                    capture_output=True, text=True)
-                if result.stdout.count(node.name) < 2:
-                    dead.append(f'{f}:{node.name}')
-    except:
-        pass
-
-if dead:
-    print(f'⚠️  Possibly unused functions:')
-    for d in dead[:5]:
-        print(f'   {d}')
-else:
-    print('✅ No dead code found')
-" 2>&1
-
-# Missing docstrings
-python -c "
-import ast, glob
-
-missing = []
-for f in glob.glob('src/**/*.py', recursive=True):
-    try:
-        tree = ast.parse(open(f).read())
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.FunctionDef,
-                                  ast.AsyncFunctionDef)):
-                if not (node.body and
-                        isinstance(node.body[0], ast.Expr) and
-                        isinstance(node.body[0].value,
-                                   ast.Constant)):
-                    missing.append(f'{f}:{node.name}')
-    except:
-        pass
-
-if missing:
-    print(f'⚠️  Missing docstrings ({len(missing)}):')
-    for m in missing[:5]:
-        print(f'   {m}')
-else:
-    print('✅ All functions have docstrings')
-" 2>&1
+python scripts/lint_check.py .
 ```
 
-### AUTO-CORRECAO — Phase 13
+Comportamento:
+- Python: `ruff check` se disponível; senão `pyflakes`; senão SKIP + AVISO.
+- Node: `eslint` local (`node_modules/.bin`) → global → `npx --no-install eslint`;
+  senão SKIP + AVISO.
+- Achados reportados como `⚠️` (não bloqueia). `❌` nunca aparece nesta fase.
 
-Se encontrar problemas de qualidade:
+A heurística antiga de "dead code" por `grep` (POSIX-only, falso-positivo em
+massa) foi removida. Ruff cobre o confiável: imports/vars não usados (F401/F841),
+redefinição (F811) etc. Detecção de função realmente nunca-chamada exige
+call-graph (`vulture`) — fora do escopo; não reintroduzir heurística ruim.
 
-```
-⚠️  FASE 13 — [N] problema(s) de qualidade:
-
-1. Função sem docstring: src/tools/arquivo.py:funcao_nome
-   Causa: Docstring não definida
-   Correção: Gerar docstring baseada no código
-
-Vou alterar src/tools/arquivo.py:
-
-linha X: def funcao_nome(args):
-linha X: def funcao_nome(args):
-             """Descrição gerada automaticamente."""
-
-Posso corrigir automaticamente? (s/n)
-```
+A exigência de docstring em toda função foi removida (estilo, ruidoso para gate).
 
 ---
 
@@ -909,7 +846,6 @@ Ao final de todas as fases, ANTES do relatorio final:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Automáticas (uma de cada vez, com confirmação):
 ✅ [Phase 1] Adicionar 3 env vars faltando
-✅ [Phase 13] Adicionar docstring em função X
 ✅ [Phase 10] Sanitizar input em ferramenta Y
 
 Manuais (requerem sua decisão):
