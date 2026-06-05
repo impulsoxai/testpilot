@@ -272,7 +272,7 @@ HTTP. `_send_payload` antigo removido (substituído por `_build_requests` + send
 **Trade-off:** REST exige config manual de targets — preço de ser honesto e
 genérico. Sem config, o guard #4a garante que o silêncio nunca vira PASS.
 
-**Commit:** `<pending>` — `feat(security): configurable REST targets via SECURITY_TARGETS (#4b)`
+**Commit:** `5ad9e6f` — `feat(security): configurable REST targets via SECURITY_TARGETS (#4b)`
 
 **Testes adicionados:** `scripts/tests/test_security_targets.py` — 15 casos:
 injeção em campo flat/nested/path, preservação de tipo no valor-marcador,
