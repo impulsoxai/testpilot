@@ -3,6 +3,7 @@ TestPilot — Shared utilities across all test scripts.
 Built by ImpulsoX AI — github.com/impulsoxai/testpilot
 """
 
+import sys
 from enum import Enum
 
 import httpx
@@ -72,8 +73,14 @@ def format_severity(severity: str) -> str:
         return "⚪"
 
 
+def _safe_print(text: str) -> None:
+    """Print text, replacing characters unencodable in sys.stdout.encoding."""
+    enc = getattr(sys.stdout, "encoding", "utf-8") or "utf-8"
+    sys.stdout.write(text.encode(enc, errors="replace").decode(enc) + "\n")
+
+
 def print_banner(test_type: str, target: str) -> None:
-    """Print a standardized test banner."""
+    """Print a standardized test banner, safe on narrow-encoding consoles (cp1252, ascii)."""
     icons = {
         "Load": "🚀",
         "Security": "🔒",
@@ -81,9 +88,9 @@ def print_banner(test_type: str, target: str) -> None:
         "Report": "📊",
     }
     icon = icons.get(test_type, "🔍")
-    print(f"{icon} TestPilot {test_type} Test")
-    print(f"   Target: {target}")
-    print()
+    _safe_print(f"{icon} TestPilot {test_type} Test")
+    _safe_print(f"   Target: {target}")
+    _safe_print("")
 
 
 
