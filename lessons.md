@@ -374,3 +374,38 @@ detecção Python (ruff/pyflakes/path/none) e Node (local/global/npx/none),
 construção de comando (ruff/pyflakes/npx/path-direto), parse ruff (summary/clean/
 sem-summary) e eslint (summary/vazio), veredito (skip/pass/warn) + guard
 `never_returns_fail_marker` (nunca `❌` em nenhuma combinação).
+
+---
+
+## L-014 — Lacuna: sem gate de dependências → vuln conhecida passava (#10a)
+
+**Symptom:** As 13 fases não auditavam dependências. CVE conhecida em
+`requirements.txt`/`package.json` passava sem reprovar nada.
+
+**Root cause:** Faltava a fase. Supply-chain não estava no escopo original.
+
+**Fix (#10a — fatia 1 de 2):** `scripts/dep_audit.py`, chamado no início da
+Phase 10 (Security — vuln de dep É segurança). **Reprova** a fase (`sys.exit(1)`).
+- Node: `npm audit --json --audit-level=<LEVEL>`; `_npm_exceeds(counts, level)`
+  reprova se houver vuln no nível-ou-acima. `AUDIT_FAIL_LEVEL` padrão `high`.
+- Python: `python -m pip_audit --format json`. pip-audit **não tem threshold de
+  severidade nativo confiável** → reprova em QUALQUER vuln. `AUDIT_IGNORE`
+  (IDs separados por vírgula) aceita advisories conhecidos/sem fix.
+- Tool ausente → SKIP + AVISO (não reprova por falta de ferramenta).
+- Funções puras: `_get_fail_level`, `_parse_ignore`, `_build_npm_audit_command`,
+  `_build_pip_audit_command` (`python -m pip_audit`, cross-platform),
+  `_parse_npm_audit`, `_npm_exceeds`, `_parse_pip_audit` (formatos
+  `{"dependencies":[...]}` e lista nua + filtro ignore), `_audit_verdict`.
+
+**Decisão (confirmada pelo usuário):** encaixe em fase existente (sem renumerar);
+npm threshold `high`; pip-audit reprova em qualquer vuln (assimetria documentada,
+não parsear CVSS à mão — frágil).
+
+**Regra #16:** 2 ecossistemas reais, funções puras, sem abstração especulativa.
+
+**Commit:** `<pending>` — `feat(deps): dependency-vulnerability gate via pip-audit/npm audit (#10a)`
+
+**Testes adicionados:** `scripts/tests/test_dep_audit.py` — 21 casos:
+fail-level default/override/inválido, parse ignore, build commands, parse npm
+(counts/vazio), `_npm_exceeds` (high/critical/só-moderate/limpo/moderate),
+parse pip (dependencies/lista-nua/ignore/sem-vuln), veredito skip/pass/fail.

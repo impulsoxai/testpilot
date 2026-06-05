@@ -609,6 +609,25 @@ for text in ENCODING_TESTS:
 
 ## PHASE 10 — SECURITY TESTS
 
+### Dependency audit (gate — reprova a fase)
+
+Vulnerabilidade conhecida em dependência **é** segurança (supply chain). Roda
+antes dos testes de input. Reprova a Phase 10 (`❌`) se achar vuln no/acima do
+limiar.
+
+```bash
+python scripts/dep_audit.py .
+```
+
+- Node: `npm audit --json --audit-level=<LEVEL>`. `LEVEL` via `AUDIT_FAIL_LEVEL`
+  (padrão `high` — reprova em high/critical).
+- Python: `pip-audit --format json`. Sem threshold de severidade nativo confiável
+  → reprova em **qualquer** vuln. `AUDIT_IGNORE=GHSA-x,PYSEC-y` aceita IDs de
+  advisories conhecidos/sem fix.
+- Ferramenta ausente → SKIP + AVISO (não reprova por falta de tool).
+
+### Input attack vectors
+
 ```python
 MALICIOUS_INPUTS = [
     "A" * 10000,                      # Long string
